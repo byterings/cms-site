@@ -1,0 +1,121 @@
+<!--
+title: Templates and plugins
+nav: Templates & plugins
+description: Install and safely upgrade templates, write your own template, and extend the platform with trusted plugins.
+-->
+<h1>Templates and plugins</h1>
+<p class="lead">Templates package a complete content model. Plugins add behaviour. Both work without changing the platform's core code.</p>
+
+<h2>Templates</h2>
+<p>A template is a folder with a <code>template.json</code> manifest in the server's templates directory (<code>TEMPLATES_DIR</code>, which is <code>templates/</code> in the repository). Installed definitions are marked as owned by the template, so they can be upgraded later.</p>
+
+<h3>Manifest</h3>
+
+```json
+{
+  "id": "events",
+  "name": "Events",
+  "version": "1.0.0",
+  "description": "Event listings with venues.",
+  "platformVersion": "1.0.0",
+  "changelog": { "1.0.0": "Initial release." },
+  "entities": [
+    { "key": "venue", "name": "Venue", "fields": [ { "key": "name", "label": "Name", "type": "text", "required": true } ] },
+    {
+      "key": "event",
+      "name": "Event",
+      "fields": [
+        { "key": "title", "label": "Title", "type": "text", "required": true },
+        { "key": "startsAt", "label": "Starts at", "type": "datetime" },
+        { "key": "venue", "label": "Venue", "type": "relation", "config": { "targetEntity": "venue" } }
+      ]
+    }
+  ],
+  "sampleData": {
+    "venue": [ { "name": "Main hall" } ],
+    "event": [ { "title": "Launch party", "venue": "@venue:0" } ]
+  }
+}
+```
+
+<p>Entities use the same format as <a href="./cli.html#schema-as-code">schema files</a>. In <code>sampleData</code>, <code>"@entity:index"</code> references an earlier sample record. Restart the API (or just call the list endpoint again) to see new templates.</p>
+
+<h2 id="template-upgrades">Template upgrades</h2>
+<p>When a newer version of an installed template is available, <strong>Templates &amp; plugins</strong> shows <em>Upgrade available</em>. Click <strong>Review upgrade</strong> to see the plan before anything changes.</p>
+<table>
+  <thead><tr><th>Plan item</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td>New entity / New field</td><td>Will be created</td></tr>
+    <tr><td>Update</td><td>A template-managed definition will be updated</td></tr>
+    <tr><td>Kept (customized)</td><td>You changed this definition, so it is left exactly as it is</td></tr>
+    <tr><td>Deprecated</td><td>Removed from the template. It is kept, with its data</td></tr>
+    <tr><td>Conflict</td><td>Can't be applied automatically (type change, key used by your own field or entity). Blocks the upgrade</td></tr>
+  </tbody>
+</table>
+<p><strong>Guarantees:</strong> your own entities, fields and all records are never modified. Breaking changes (a new required field, a field becoming unique) need explicit acceptance. The upgrade runs in one transaction: if anything fails, nothing changes, and the failed attempt is recorded in the upgrade history.</p>
+
+```bash
+GET  /api/v1/admin/templates/{id}/upgrade-plan
+POST /api/v1/admin/templates/{id}/upgrade      {"acceptBreaking": true}
+GET  /api/v1/admin/templates/{id}/upgrades     # history, including failures
+```
+
+<h2 id="plugins">Plugins</h2>
+<p>Plugins are <strong>trusted code installed on the server</strong> by an administrator, in a folder inside <code>PLUGINS_DIR</code> (<code>plugins/</code> in the repository). They are never uploaded through the UI. Each workspace enables the plugins it wants under <strong>Templates &amp; plugins</strong>.</p>
+
+<h3>Manifest: <code>plugin.json</code></h3>
+
+```json
+{
+  "id": "word-count",
+  "name": "Word count",
+  "version": "1.0.0",
+  "description": "Stores the number of words of an article body.",
+  "capabilities": ["records:modify"],
+  "entities": ["article"],
+  "main": "index.js"
+}
+```
+
+<table>
+  <thead><tr><th>Capability</th><th>Allows</th></tr></thead>
+  <tbody>
+    <tr><td><code>records:modify</code></td><td><code>record.beforeCreate</code>, <code>record.beforeUpdate</code>: return field changes</td></tr>
+    <tr><td><code>records:observe</code></td><td><code>record.afterCreate</code>, <code>record.afterUpdate</code>, <code>record.afterDelete</code>: react to changes</td></tr>
+  </tbody>
+</table>
+
+<h3>Module: <code>index.js</code></h3>
+
+```js
+'use strict';
+
+function register(api) {
+  api.on('record.beforeCreate', count);
+  api.on('record.beforeUpdate', count);
+}
+
+function count({ fields, data }) {
+  if (!fields.includes('wordCount') || typeof data.body !== 'string') return {};
+  return { wordCount: data.body.trim().split(/\s+/).filter(Boolean).length };
+}
+
+module.exports = { register };
+```
+
+<h3>How hooks behave</h3>
+<ul>
+  <li><strong>Before-hooks</strong> receive <code>{ tenantId, entity, fields, data, previous }</code> and may return field changes. The changes are <strong>validated against the schema</strong> like user input, then saved in the same transaction.</li>
+  <li>Throwing an error rejects the change with <code>422 PLUGIN_REJECTED</code> and your message.</li>
+  <li>Hooks have a time limit (<code>PLUGIN_HOOK_TIMEOUT_MS</code>, default 2 s). A slow hook returns <code>503 PLUGIN_TIMEOUT</code>.</li>
+  <li><strong>After-hooks</strong> run after the change is saved. Their errors are logged and never affect the request.</li>
+  <li>Plugins only receive record data. They get no database access and never see other workspaces.</li>
+</ul>
+
+<div class="callout warn">
+  <strong>Trust</strong>
+  <p>Plugin code runs inside the API process. Install only plugins you have reviewed.</p>
+</div>
+
+<h3>Example: CMS publishing helpers</h3>
+<p>The bundled <code>cms-publishing</code> plugin sets <code>publishedAt</code> when an article or page is first published, and fills an empty <code>seoTitle</code> from the title. Its source is in <code>plugins/cms-publishing</code>.</p>

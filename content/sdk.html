@@ -1,0 +1,103 @@
+<!--
+title: TypeScript SDK
+nav: TypeScript SDK
+description: Use the typed TypeScript client to read and write records, manage entities and sync configuration.
+-->
+<h1>TypeScript SDK</h1>
+<p class="lead"><code>@byteringscms/sdk</code> is a small, typed client for the REST API. It works in Node.js 18+, Deno, Bun, edge runtimes and browsers.</p>
+
+<h2>Create a client</h2>
+
+```ts
+import { createClient } from '@byteringscms/sdk';
+
+const cms = createClient({
+  baseUrl: 'https://cms.example.com', // /api/v1 is added automatically
+  apiKey: process.env.CMS_API_KEY,
+});
+```
+
+<div class="callout warn">
+  <strong>Keep API keys on the server</strong>
+  <p>Use the SDK with an API key in server code (API routes, server components, scripts). For browsers, use the anonymous <a href="./public-api.html">public API</a>.</p>
+</div>
+
+<h2>Typed records</h2>
+<p>Generate interfaces for your entities with the <a href="./cli.html#generate-types">CLI</a>, or write them yourself:</p>
+
+```ts
+interface Product {
+  name: string;
+  price: string;          // decimals are strings
+  isActive: boolean | null;
+  tags: Array<'new' | 'sale'> | null;
+}
+
+const products = cms.records<Product>('product');
+
+const page = await products.list({
+  filter: { isActive: true, price: { gte: 10 }, tags: { contains: 'sale' } },
+  sort: ['-price', 'name'],
+  pageSize: 50,
+});
+page.data[0].data.price; // typed as string
+
+const created = await products.create({ name: 'Desk lamp', price: '19.90' });
+const updated = await products.update(created.id, { price: '24.50' }, { version: created.version });
+await products.delete(created.id);
+await products.restore(created.id); // admins
+const one = await products.get(created.id, { expand: ['category'] });
+```
+
+<h2>Iterate over everything</h2>
+
+```ts
+for await (const product of cms.iterate<Product>('product', { filter: { isActive: true } })) {
+  console.log(product.data.name);
+}
+```
+
+<h2>Errors</h2>
+<p>Failed requests throw <code>PlatformError</code> with the HTTP <code>status</code>, the stable <code>code</code> and optional <code>details</code>:</p>
+
+```ts
+import { PlatformError } from '@byteringscms/sdk';
+
+try {
+  await products.update(id, { price: '1.00' }, { version: 1 });
+} catch (error) {
+  if (error instanceof PlatformError && error.code === 'RECORD_VERSION_CONFLICT') {
+    // reload and retry
+  } else throw error;
+}
+```
+
+<p>Network failures raise <code>PlatformError</code> with code <code>NETWORK_ERROR</code>.</p>
+
+<h2>Schema and configuration</h2>
+
+```ts
+const entities = await cms.entities.list();
+await cms.entities.create({ key: 'event', name: 'Event', fields: [{ key: 'title', type: 'text', label: 'Title' }] });
+
+const doc = await cms.config.export();             // portable schema document
+const plan = await cms.config.diff(doc);           // read-only plan
+await cms.config.apply(doc, { prune: false });     // atomic apply
+
+const spec = await cms.openapi.tenant();           // OpenAPI incl. your entities
+```
+
+<h2>Reference</h2>
+<table>
+  <thead><tr><th>Method</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>records&lt;T&gt;(key)</code></td><td><code>list</code>, <code>get</code>, <code>create</code>, <code>update</code>, <code>delete</code>, <code>restore</code></td></tr>
+    <tr><td><code>iterate&lt;T&gt;(key, options)</code></td><td>Async iterator over all pages</td></tr>
+    <tr><td><code>entities</code></td><td><code>list</code>, <code>get</code>, <code>create</code>, <code>update</code>, <code>remove</code></td></tr>
+    <tr><td><code>config</code></td><td><code>export</code>, <code>diff</code>, <code>apply</code></td></tr>
+    <tr><td><code>openapi</code></td><td><code>platform()</code>, <code>tenant()</code></td></tr>
+    <tr><td><code>tenant()</code></td><td>Current workspace</td></tr>
+    <tr><td><code>request(method, path, opts)</code></td><td>Any other endpoint</td></tr>
+  </tbody>
+</table>
+<p>List options: <code>page</code>, <code>pageSize</code>, <code>sort</code>, <code>fields</code>, <code>search</code>, <code>expand</code>, <code>filter</code>, <code>deleted</code>.</p>

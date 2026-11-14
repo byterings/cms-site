@@ -1,0 +1,99 @@
+<!--
+title: Admin Studio guide
+nav: Admin Studio
+description: How to use the Admin Studio: schema builder, content, media, members, API keys, audit log, templates and plugins.
+-->
+<h1>Admin Studio guide</h1>
+<p class="lead">The Admin Studio is the web interface for managing your workspace. Everything it does goes through the same API your own applications use.</p>
+
+<h2>Signing in</h2>
+<ul>
+  <li><strong>First run:</strong> open <code>/setup</code> to create the organization and the first owner (see <a href="./quickstart.html#5-create-your-administrator">Quickstart</a>).</li>
+  <li><strong>Afterwards:</strong> sign in at <code>/login</code> with your email and password. Sessions last 7 days by default.</li>
+  <li><strong>Several workspaces:</strong> in multi-tenant mode, a workspace switcher appears at the top of the sidebar.</li>
+  <li><strong>Password:</strong> change it under <strong>Settings → Account</strong>. All your other sessions are signed out.</li>
+</ul>
+<p>The sidebar only shows what your role allows. Viewers, for example, don't see Schema, Members or API keys.</p>
+
+<h2>Dashboard</h2>
+<p>The dashboard lists every content type with its number of records. Click a card to open the records.</p>
+
+<h2>Schema builder</h2>
+<p><strong>Schema</strong> lists your entities. Click <strong>New entity</strong>, enter a name (singular, for example <em>Product</em>), and the API key is suggested automatically. Open an entity to:</p>
+<ul>
+  <li><strong>Add fields:</strong> choose a label (the key is generated), a <a href="./field-types.html">type</a> and its settings, then the rules:
+    <ul>
+      <li><em>Required</em>: a value must be present.</li>
+      <li><em>Unique</em>: no two records may share a value (text comparisons ignore case).</li>
+      <li><em>Visible in public API</em>: include the field in anonymous responses.</li>
+      <li><em>Readable by</em> / <em>Writable by</em>: the minimum role that can see or edit the field.</li>
+      <li><em>Default value</em>: used when a new record doesn't set the field.</li>
+    </ul>
+  </li>
+  <li><strong>Edit fields</strong> (pencil icon): the key and type are fixed, everything else can change.</li>
+  <li><strong>Reorder fields</strong> with the arrows. The order is used in forms.</li>
+  <li><strong>Delete fields:</strong> removes the field <em>and its values</em> from every record.</li>
+  <li><strong>Settings:</strong> name, plural name, description, title field, status (<em>Archived</em> makes records read-only), and public API access (see <a href="./public-api.html">Public API</a>).</li>
+  <li><strong>Delete the entity:</strong> only possible when it has no live records and no other entity links to it.</li>
+</ul>
+<div class="callout tip">
+  <strong>Schema changes are safe to try</strong>
+  <p>Invalid settings are rejected with a message next to the field, and every change is stored in the entity's version history.</p>
+</div>
+
+<h2>Managing content</h2>
+<p>Each active entity appears under <strong>Content</strong> in the sidebar.</p>
+<ul>
+  <li><strong>List:</strong> search text fields, sort by clicking column headers, page through results. Related records show their titles.</li>
+  <li><strong>Create and edit:</strong> forms are generated from the fields. Values are checked as you save, and the server checks them again. Fields you can't edit are shown read-only.</li>
+  <li><strong>Slugs:</strong> slug fields fill in from the title automatically on new records until you edit them yourself.</li>
+  <li><strong>Relations:</strong> type to search the target entity and pick one or more records.</li>
+  <li><strong>Media:</strong> click <em>Choose file</em> to pick from the library or upload a new file.</li>
+  <li><strong>Conflicts:</strong> if someone else saved the record while you were editing, saving shows a warning instead of overwriting their changes. Reload to get the latest version.</li>
+  <li><strong>Trash:</strong> deleted records go to the trash. Admins tick <em>Show deleted</em> to restore them or delete them permanently.</li>
+</ul>
+
+<h2>Media library</h2>
+<p><strong>Media</strong> shows every uploaded file. Click <strong>Upload</strong> or drag files onto the page. Click a file to set its <em>alternative text</em> (important for accessibility and SEO), rename it, open it or delete it.</p>
+<p>Allowed types: PNG, JPEG, GIF, WebP, MP4, WebM, MP3, WAV, OGG, PDF, plain text and CSV, up to 10 MB by default. SVG is not accepted, because SVG files can contain scripts.</p>
+
+<h2>Members</h2>
+<p><strong>Settings → Members</strong> (admins and owners):</p>
+<ul>
+  <li><strong>Add member:</strong> enter the email and role. For someone without an account yet, also enter their name and an initial password (12+ characters) and share it with them securely.</li>
+  <li><strong>Change role</strong> with the dropdown, or <strong>remove</strong> a member. Access ends immediately.</li>
+</ul>
+
+<h2>API keys</h2>
+<p><strong>Build → API keys</strong>: create keys for websites, apps and scripts.</p>
+<ol class="steps">
+  <li>Click <strong>New API key</strong>, name it (for example <em>Website production</em>) and choose scopes.</li>
+  <li>Optionally set an expiry date.</li>
+  <li>Copy the key from the confirmation dialog. <strong>It is shown only once.</strong></li>
+</ol>
+<table>
+  <thead><tr><th>Scope</th><th>Allows</th></tr></thead>
+  <tbody>
+    <tr><td><code>records:read</code></td><td>List and read records</td></tr>
+    <tr><td><code>records:write</code></td><td>Create, update and delete records</td></tr>
+    <tr><td><code>metadata:read</code></td><td>Read entities and fields</td></tr>
+    <tr><td><code>metadata:write</code></td><td>Change entities and fields, schema sync from the CLI</td></tr>
+    <tr><td><code>media:read</code> / <code>media:write</code></td><td>Read or upload and manage media</td></tr>
+  </tbody>
+</table>
+<p>Give each key only the scopes it needs. Revoking a key stops it working immediately.</p>
+
+<h2>Audit log</h2>
+<p><strong>Settings → Audit log</strong> lists sensitive actions with time, actor, target and changed field names. Filter by action, for example <code>record.updated</code>.</p>
+
+<h2>Templates &amp; plugins</h2>
+<p><strong>Build → Templates &amp; plugins</strong>:</p>
+<ul>
+  <li><strong>Install</strong> a template, optionally with sample content.</li>
+  <li><strong>Review upgrade</strong> when a newer template version is available. You see exactly what will change before anything happens.</li>
+  <li><strong>Enable or disable plugins</strong> for this workspace.</li>
+</ul>
+<p>Details: <a href="./templates-plugins.html">Templates &amp; plugins</a>.</p>
+
+<h2>Workspace settings</h2>
+<p>Owners can rename the workspace under <strong>Settings → Account</strong>. The workspace <em>slug</em> is used in public API URLs and cannot be changed there.</p>

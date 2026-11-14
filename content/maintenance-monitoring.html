@@ -1,0 +1,76 @@
+<!--
+title: Maintenance and monitoring
+nav: Maintenance & monitoring
+description: Health checks, structured logs, request ids, usage and quotas, scheduled maintenance and troubleshooting.
+-->
+<h1>Maintenance and monitoring</h1>
+<p class="lead">How to watch a running installation, keep it tidy, and find problems quickly.</p>
+
+<h2>Health checks</h2>
+<table>
+  <thead><tr><th>Endpoint</th><th>Meaning</th><th>Use for</th></tr></thead>
+  <tbody>
+    <tr><td><code>GET /api/v1/health</code></td><td>The API process responds</td><td>Liveness probes</td></tr>
+    <tr><td><code>GET /api/v1/health/ready</code></td><td>The database is reachable (otherwise <code>503</code>)</td><td>Readiness checks, load balancers, uptime monitors</td></tr>
+  </tbody>
+</table>
+<p>Both Docker images define health checks, so <code>docker compose ps</code> shows their status.</p>
+
+<h2>Logs</h2>
+<p>The API writes one JSON object per line to standard output:</p>
+
+```json
+{"level":30,"time":1794589661477,"req":{"id":"7f0c2d…","method":"GET","path":"/api/v1/entities/article/records"},"tenantId":"…","actor":"user","res":{"statusCode":200},"responseTime":16,"msg":"request completed"}
+```
+
+<ul>
+  <li>Every response has an <code>x-request-id</code> header. Clients can send their own id (8 to 128 characters of letters, digits, <code>. _ -</code>) to correlate requests.</li>
+  <li>Server errors return <code>error.requestId</code>. Ask users for it, then search the logs.</li>
+  <li><strong>Never logged:</strong> request bodies, query strings, passwords, cookies, API keys, CSRF and setup tokens.</li>
+  <li>Health checks are not logged.</li>
+</ul>
+<p>Collect logs with your Docker logging driver or any log stack (Loki, ELK, CloudWatch, Datadog). For local development set <code>LOG_FORMAT=pretty</code>.</p>
+
+<h2>Usage and quotas</h2>
+<p><code>GET /api/v1/admin/usage</code> (admins) returns the workspace's records, entities, media files and bytes, members, API keys and limits:</p>
+
+```json
+{ "data": { "records": 1520, "entities": 6, "media": { "files": 84, "bytes": 51234567 },
+            "members": 4, "apiKeys": 2, "limits": { "maxRecords": null, "maxMediaBytes": 1073741824 } } }
+```
+
+<p>Set <code>TENANT_MAX_RECORDS</code> and <code>TENANT_MAX_MEDIA_BYTES</code> to cap workspaces. When a limit is reached, new records or uploads fail with <code>403 QUOTA_EXCEEDED</code>. Trashed items don't count.</p>
+
+<h2>Scheduled maintenance</h2>
+<p>Run the maintenance job once a day:</p>
+
+```bash
+# Docker
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm maintenance
+# Native
+pnpm maintenance
+```
+
+<p>It:</p>
+<ul>
+  <li>deletes expired sessions;</li>
+  <li>removes audit events older than <code>AUDIT_RETENTION_DAYS</code> (365);</li>
+  <li>permanently deletes records and media that have been in the trash longer than <code>TRASH_RETENTION_DAYS</code> (30). References to purged records are removed from other records.</li>
+</ul>
+<p>It prints a JSON summary, for example <code>{"maintenance":{"expiredSessions":12,"auditEvents":0,"purgedRecords":3,"purgedMedia":1}}</code>.</p>
+
+<h2>Troubleshooting</h2>
+<table>
+  <thead><tr><th>Symptom</th><th>Cause and fix</th></tr></thead>
+  <tbody>
+    <tr><td>API exits with <em>Invalid environment configuration</em></td><td>A variable is missing or malformed. The message names it</td></tr>
+    <tr><td>Signing in works but you are signed out again</td><td><code>COOKIE_SECURE=true</code> over plain HTTP. Use HTTPS, or set it to <code>false</code> for local testing only</td></tr>
+    <tr><td>All users hit the same rate limit</td><td>Behind a proxy without <code>TRUST_PROXY=true</code></td></tr>
+    <tr><td><code>/health/ready</code> returns 503</td><td>Database down or wrong <code>DATABASE_URL</code></td></tr>
+    <tr><td>Data seems missing when querying PostgreSQL by hand</td><td>Row-level security hides rows without a workspace context. Use a <code>BYPASSRLS</code> role for manual queries</td></tr>
+    <tr><td><code>429 RATE_LIMITED</code> on login</td><td>More than 10 attempts per minute from one IP. Wait for <code>Retry-After</code></td></tr>
+    <tr><td><code>PLUGIN_TIMEOUT</code></td><td>A plugin hook is too slow. Check its logs or raise <code>PLUGIN_HOOK_TIMEOUT_MS</code></td></tr>
+    <tr><td>Upload rejected with <code>MEDIA_CONTENT_MISMATCH</code></td><td>The file's content doesn't match its type, for example a renamed file</td></tr>
+    <tr><td>Forgot the only owner's password</td><td>Update the password hash in the database as a superuser, or ask another owner to add you again</td></tr>
+  </tbody>
+</table>

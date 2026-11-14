@@ -1,0 +1,185 @@
+<!--
+title: REST API
+description: Authentication, conventions, records, filtering, sorting, pagination, expansion, errors and the endpoint reference.
+-->
+<h1>REST API</h1>
+<p class="lead">Everything in the platform is available through a versioned REST API at <code>/api/v1</code>. The Admin Studio uses the same API.</p>
+
+<div class="callout tip">
+  <strong>Interactive documentation</strong>
+  <p>Every installation serves an OpenAPI 3.1 document at <code>/api/v1/openapi.json</code> and interactive docs at <code>/api/v1/docs</code>. <code>/api/v1/openapi/tenant.json</code> adds typed schemas and paths for your own entities.</p>
+</div>
+
+<h2>Authentication</h2>
+<h3>API keys (servers, apps, scripts)</h3>
+<p>Create a key under <strong>API keys</strong> in the Admin Studio and send it as a bearer token:</p>
+
+```bash
+curl -H "Authorization: Bearer bcms_1a2b3c4d_xxxxxxxxxxxxxxxxxxxx" \
+  https://cms.example.com/api/v1/entities/article/records
+```
+
+<p>A key belongs to one workspace and is limited to its scopes. Keys cannot manage members or other keys.</p>
+
+<h3>Browser sessions</h3>
+<p><code>POST /api/v1/auth/login</code> sets an <code>httpOnly</code> session cookie and returns the session, including a <code>csrfToken</code>. Every state-changing request made with the cookie (<code>POST</code>, <code>PATCH</code>, <code>DELETE</code>) must send the token in the <code>x-csrf-token</code> header. Bearer-token requests don't need it.</p>
+
+```bash
+curl -c cookies.txt -H "content-type: application/json" \
+  -d '{"email":"ada@acme.com","password":"…"}' \
+  https://cms.example.com/api/v1/auth/login
+```
+
+<h2>Conventions</h2>
+<ul>
+  <li>Requests and responses are JSON. The request body limit is 1 MB by default.</li>
+  <li>Successful responses wrap their payload: <code>{ "data": … }</code>, and lists add <code>"meta"</code>.</li>
+  <li>IDs are UUIDs. Timestamps are ISO 8601 in UTC.</li>
+  <li>Every response has an <code>x-request-id</code> header. You may send your own.</li>
+  <li>Resources of other workspaces always return <code>404</code>.</li>
+</ul>
+
+<h2>Records</h2>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Scope</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>GET</td><td><code>/entities/{key}/records</code></td><td>records:read</td><td>List records</td></tr>
+    <tr><td>POST</td><td><code>/entities/{key}/records</code></td><td>records:write</td><td>Create a record</td></tr>
+    <tr><td>GET</td><td><code>/entities/{key}/records/{id}</code></td><td>records:read</td><td>Get one record</td></tr>
+    <tr><td>PATCH</td><td><code>/entities/{key}/records/{id}</code></td><td>records:write</td><td>Update fields</td></tr>
+    <tr><td>DELETE</td><td><code>/entities/{key}/records/{id}</code></td><td>records:write</td><td>Move to the trash</td></tr>
+    <tr><td>POST</td><td><code>/entities/{key}/records/{id}/restore</code></td><td>records:write (admin)</td><td>Restore from the trash</td></tr>
+    <tr><td>DELETE</td><td><code>/entities/{key}/records/{id}/permanent</code></td><td>records:write (admin)</td><td>Delete a trashed record forever</td></tr>
+  </tbody>
+</table>
+
+<h3>Create</h3>
+
+```bash
+curl -X POST https://cms.example.com/api/v1/entities/product/records \
+  -H "Authorization: Bearer $API_KEY" -H "content-type: application/json" \
+  -d '{"data": {"name": "Desk lamp", "price": 19.9}}'
+```
+
+<p>Missing fields get their default values. Unknown fields, invalid values and missing required fields return <code>422</code> with details per field.</p>
+
+<h3>Update with concurrency control</h3>
+<p>Send only the fields to change. Include the <code>version</code> you last read to avoid overwriting someone else's change:</p>
+
+```bash
+curl -X PATCH https://cms.example.com/api/v1/entities/product/records/$ID \
+  -H "Authorization: Bearer $API_KEY" -H "content-type: application/json" \
+  -d '{"data": {"price": "24.50", "stock": null}, "version": 3}'
+```
+
+<p>If the record changed meanwhile, the API answers <code>409 RECORD_VERSION_CONFLICT</code> with <code>details.currentVersion</code>.</p>
+
+<h2>Querying</h2>
+<table>
+  <thead><tr><th>Parameter</th><th>Example</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>page</code>, <code>pageSize</code></td><td><code>page=2&amp;pageSize=50</code></td><td>Pagination. <code>pageSize</code> is 1 to 100, default 20</td></tr>
+    <tr><td><code>sort</code></td><td><code>sort=-price,name</code></td><td>Comma-separated, <code>-</code> for descending. Also <code>createdAt</code> and <code>updatedAt</code>. Default <code>-createdAt</code></td></tr>
+    <tr><td><code>filter</code></td><td><code>filter[price][gte]=10</code></td><td>See below</td></tr>
+    <tr><td><code>search</code></td><td><code>search=lamp</code></td><td>Case-insensitive match on text fields</td></tr>
+    <tr><td><code>fields</code></td><td><code>fields=name,price</code></td><td>Return only these fields</td></tr>
+    <tr><td><code>expand</code></td><td><code>expand=author,tags</code></td><td>Replace relation ids with the linked records (one level deep, up to 5 fields)</td></tr>
+    <tr><td><code>deleted</code></td><td><code>deleted=true</code></td><td>Admins: list the trash</td></tr>
+  </tbody>
+</table>
+
+<h3>Filters</h3>
+<p><code>filter[field]=value</code> means <em>equals</em>. <code>filter[field][operator]=value</code> uses an operator:</p>
+<table>
+  <thead><tr><th>Operator</th><th>Meaning</th><th>Example</th></tr></thead>
+  <tbody>
+    <tr><td><code>eq</code>, <code>ne</code></td><td>Equal / not equal</td><td><code>filter[status][ne]=draft</code></td></tr>
+    <tr><td><code>gt</code>, <code>gte</code>, <code>lt</code>, <code>lte</code></td><td>Comparisons (numbers, dates)</td><td><code>filter[price][lt]=100</code></td></tr>
+    <tr><td><code>in</code></td><td>One of a comma-separated list (up to 100)</td><td><code>filter[status][in]=draft,review</code></td></tr>
+    <tr><td><code>contains</code></td><td>Text contains (case-insensitive), or a multi-value field contains a value</td><td><code>filter[tags][contains]=sale</code></td></tr>
+    <tr><td><code>startsWith</code></td><td>Text starts with</td><td><code>filter[name][startsWith]=desk</code></td></tr>
+    <tr><td><code>isNull</code></td><td>Field is empty (<code>true</code>) or set (<code>false</code>)</td><td><code>filter[stock][isNull]=true</code></td></tr>
+  </tbody>
+</table>
+<p>System attributes work too: <code>filter[id][in]=…</code>, <code>filter[createdAt][gte]=2026-01-01T00:00:00Z</code>. Up to 20 conditions are combined with AND. Which operators work depends on the <a href="./field-types.html">field type</a>. Unknown fields or unsupported operators return <code>400 INVALID_FILTER</code>. You can only filter, sort and select fields your role or key may read.</p>
+
+<h2>Errors</h2>
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Validation failed",
+    "details": [{ "path": "data.price", "message": "Must be at least 0" }]
+  }
+}
+```
+
+<table>
+  <thead><tr><th>Status</th><th>Common codes</th></tr></thead>
+  <tbody>
+    <tr><td>400</td><td><code>INVALID_FILTER</code>, <code>INVALID_SORT</code>, <code>INVALID_FIELDS</code>, <code>INVALID_EXPAND</code>, <code>BAD_REQUEST</code></td></tr>
+    <tr><td>401</td><td><code>UNAUTHENTICATED</code>, <code>INVALID_CREDENTIALS</code></td></tr>
+    <tr><td>403</td><td><code>FORBIDDEN</code>, <code>CSRF_INVALID</code>, <code>FIELD_FORBIDDEN</code>, <code>QUOTA_EXCEEDED</code></td></tr>
+    <tr><td>404</td><td><code>NOT_FOUND</code> (also for other workspaces' resources)</td></tr>
+    <tr><td>409</td><td><code>RECORD_VERSION_CONFLICT</code>, <code>UNIQUE_VIOLATION</code>, <code>ENTITY_ARCHIVED</code>, <code>ENTITY_HAS_RECORDS</code></td></tr>
+    <tr><td>413 / 415</td><td><code>PAYLOAD_TOO_LARGE</code>, <code>UNSUPPORTED_MEDIA_TYPE</code></td></tr>
+    <tr><td>422</td><td><code>VALIDATION_FAILED</code>, <code>PLUGIN_REJECTED</code></td></tr>
+    <tr><td>429</td><td><code>RATE_LIMITED</code>, with a <code>Retry-After</code> header</td></tr>
+    <tr><td>5xx</td><td><code>INTERNAL_ERROR</code>, with <code>requestId</code> for support</td></tr>
+  </tbody>
+</table>
+
+<h2>Rate limits</h2>
+<p>By default each client (API key or IP address) may make 600 requests per minute. Login and setup are limited to 10 attempts per minute per IP. Administrators can change both. See <a href="./configuration.html">Configuration</a>.</p>
+
+<h2>Endpoint reference</h2>
+<h3>Authentication and workspace</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>GET</td><td><code>/setup/status</code></td><td>Is the installation set up?</td></tr>
+    <tr><td>POST</td><td><code>/setup</code></td><td>First-run setup (once)</td></tr>
+    <tr><td>POST</td><td><code>/auth/login</code>, <code>/auth/logout</code></td><td>Sign in / out</td></tr>
+    <tr><td>GET</td><td><code>/auth/session</code></td><td>Current user, workspace, permissions, CSRF token</td></tr>
+    <tr><td>POST</td><td><code>/auth/switch-tenant</code>, <code>/auth/password</code></td><td>Switch workspace, change password</td></tr>
+    <tr><td>GET, PATCH</td><td><code>/tenant</code></td><td>Current workspace</td></tr>
+    <tr><td>GET</td><td><code>/admin/usage</code></td><td>Usage and quota limits</td></tr>
+    <tr><td>GET, POST, PATCH</td><td><code>/platform/tenants</code></td><td>Platform admins: provision and suspend workspaces</td></tr>
+  </tbody>
+</table>
+<h3>Administration</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>GET, POST, PATCH, DELETE</td><td><code>/admin/members</code></td><td>Members and roles</td></tr>
+    <tr><td>GET, POST, DELETE</td><td><code>/admin/api-keys</code></td><td>API keys</td></tr>
+    <tr><td>GET</td><td><code>/admin/audit-events</code></td><td>Audit log</td></tr>
+    <tr><td>GET</td><td><code>/admin/field-types</code></td><td>Field type registry</td></tr>
+    <tr><td>GET, POST, PATCH, DELETE</td><td><code>/admin/entities[/{id}]</code></td><td>Entities</td></tr>
+    <tr><td>POST, PATCH, DELETE</td><td><code>/admin/entities/{id}/fields[/{fieldId}]</code></td><td>Fields, and <code>/fields/reorder</code></td></tr>
+    <tr><td>GET</td><td><code>/admin/entities/{id}/versions</code></td><td>Schema history</td></tr>
+    <tr><td>GET, POST</td><td><code>/admin/config/export</code>, <code>/diff</code>, <code>/apply</code></td><td><a href="./cli.html#schema-as-code">Schema as code</a></td></tr>
+    <tr><td>GET, POST</td><td><code>/admin/templates…</code></td><td><a href="./templates-plugins.html">Templates and upgrades</a></td></tr>
+    <tr><td>GET, POST</td><td><code>/admin/plugins…</code></td><td><a href="./templates-plugins.html#plugins">Plugins</a></td></tr>
+  </tbody>
+</table>
+<h3>Media</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>POST</td><td><code>/media</code></td><td>Upload (<code>multipart/form-data</code>: <code>file</code>, optional <code>alt</code>)</td></tr>
+    <tr><td>GET</td><td><code>/media</code>, <code>/media/{id}</code></td><td>List (filter <code>kind</code>, <code>search</code>) and get metadata</td></tr>
+    <tr><td>GET</td><td><code>/media/{id}/file</code></td><td>Download the file</td></tr>
+    <tr><td>PATCH, DELETE</td><td><code>/media/{id}</code></td><td>Update alt text or file name, delete</td></tr>
+  </tbody>
+</table>
+
+```bash
+curl -X POST https://cms.example.com/api/v1/media \
+  -H "Authorization: Bearer $API_KEY" \
+  -F "file=@cover.png;type=image/png" -F "alt=Product photo"
+```
+
+<h3>System</h3>
+<p><code>GET /health</code>, <code>GET /health/ready</code>, <code>GET /openapi.json</code>, <code>GET /openapi/tenant.json</code>, <code>GET /docs</code>. The public content API is described on its <a href="./public-api.html">own page</a>.</p>

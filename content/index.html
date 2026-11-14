@@ -1,0 +1,77 @@
+<!--
+title: Introduction
+nav: Introduction
+description: ByteRings CMS is an open-source, multi-tenant, metadata-driven headless CMS and application platform you can self-host.
+layout: home
+-->
+<section class="hero">
+  <h1>Build content apps without hardcoding them</h1>
+  <p class="lead">
+    ByteRings CMS is an open-source, multi-tenant, metadata-driven platform. Define your content types
+    in the Admin Studio, and get validated storage, permissions, a REST API, a public content API and
+    a typed SDK instantly. Self-host it, or run it as SaaS from the same codebase.
+  </p>
+  <div class="buttons">
+    <a class="button primary" href="./quickstart.html">Get started →</a>
+    <a class="button" href="./concepts.html">Core concepts</a>
+    <a class="button" href="./rest-api.html">API reference</a>
+  </div>
+</section>
+
+<h2>What you get</h2>
+<div class="cards">
+  <a class="card" href="./admin-studio.html"><span class="icon">🧩</span><span class="card-title">Schema builder</span><p>Create entities and fields in the browser. Forms and lists are generated from your definitions.</p></a>
+  <a class="card" href="./field-types.html"><span class="icon">🔤</span><span class="card-title">11 field types</span><p>Text, long text, numbers, decimals, booleans, dates, selects, relations and media, with validation.</p></a>
+  <a class="card" href="./rest-api.html"><span class="icon">🔌</span><span class="card-title">REST API + OpenAPI</span><p>Filtering, sorting, search, pagination and relation expansion, documented with OpenAPI 3.1.</p></a>
+  <a class="card" href="./public-api.html"><span class="icon">🌍</span><span class="card-title">Headless delivery</span><p>Publish content to any website or app through the anonymous, read-only public API.</p></a>
+  <a class="card" href="./concepts.html#tenants"><span class="icon">🏢</span><span class="card-title">Multi-tenant</span><p>Isolated workspaces enforced in code and by PostgreSQL row-level security.</p></a>
+  <a class="card" href="./cms-template.html"><span class="icon">📰</span><span class="card-title">CMS template</span><p>Articles, pages, categories, tags and authors with SEO fields and a draft/published workflow.</p></a>
+  <a class="card" href="./sdk.html"><span class="icon">🧑‍💻</span><span class="card-title">SDK &amp; CLI</span><p>A typed TypeScript client, schema-as-code, and type generation for your entities.</p></a>
+  <a class="card" href="./templates-plugins.html"><span class="icon">🔄</span><span class="card-title">Templates &amp; plugins</span><p>Install ready-made apps, upgrade them safely, and extend behaviour with trusted plugins.</p></a>
+  <a class="card" href="./deployment.html"><span class="icon">🚀</span><span class="card-title">Self-hostable</span><p>Docker Compose with automatic HTTPS, backups, restores and structured logs.</p></a>
+</div>
+
+<h2>How it works</h2>
+<p>
+  Everything starts with <strong>metadata</strong>. An <em>entity</em> (for example <code>Product</code> or
+  <code>Article</code>) is a set of <em>fields</em>. The platform reads these definitions at runtime and uses
+  them everywhere:
+</p>
+<ul>
+  <li><strong>Storage</strong>: records are stored in PostgreSQL and validated against their field definitions.</li>
+  <li><strong>API</strong>: every entity is available at <code>/api/v1/entities/&lt;key&gt;/records</code>.</li>
+  <li><strong>Admin Studio</strong>: forms, tables and pickers are generated from the same definitions.</li>
+  <li><strong>Security</strong>: roles, field-level read/write rules and tenant isolation apply to every request.</li>
+</ul>
+<p>The browser and the API share one contract, so what you build in the UI works the same way through the API, and the reverse.</p>
+
+```text
+ Websites / apps / Admin Studio / CLI
+                │
+           REST API v1  ── OpenAPI 3.1
+                │
+  Tenant context · authentication · roles
+                │
+  Metadata engine · validation · relations
+                │
+       PostgreSQL (JSONB + row-level security)
+```
+
+<h2>Tech stack</h2>
+<table>
+  <thead><tr><th>Part</th><th>Technology</th></tr></thead>
+  <tbody>
+    <tr><td>API</td><td>Node.js, NestJS, TypeScript, Prisma</td></tr>
+    <tr><td>Admin Studio</td><td>Next.js, React, Tailwind CSS, TanStack Query</td></tr>
+    <tr><td>Database</td><td>PostgreSQL 16+ (JSONB records, row-level security)</td></tr>
+    <tr><td>Media storage</td><td>Local disk or any S3-compatible service (S3, R2, MinIO)</td></tr>
+    <tr><td>Deployment</td><td>Docker Compose with Caddy (automatic HTTPS), or native Node.js</td></tr>
+  </tbody>
+</table>
+
+<h2>Where to go next</h2>
+<div class="cards">
+  <a class="card" href="./quickstart.html"><span class="card-title">Quickstart</span><p>Run the platform on your machine and create your first entity.</p></a>
+  <a class="card" href="./deployment.html"><span class="card-title">Deploy to production</span><p>Install on a server with Docker Compose and HTTPS.</p></a>
+  <a class="card" href="./public-api.html"><span class="card-title">Use content on your website</span><p>Fetch published content from any frontend framework.</p></a>
+</div>

@@ -1,0 +1,126 @@
+<!--
+title: Deploy to production
+nav: Deployment
+description: Install ByteRings CMS on a server with Docker Compose and automatic HTTPS, or natively with Node.js.
+-->
+<h1>Deploy to production</h1>
+<p class="lead">The recommended setup is Docker Compose: PostgreSQL, the API, the Admin Studio and Caddy for automatic HTTPS, on one server.</p>
+
+<h2>Requirements</h2>
+<ul>
+  <li>A Linux server with Docker Engine 24+ and Docker Compose v2 (2 vCPU and 2 GB RAM are enough to start).</li>
+  <li>A domain name pointing to the server, for example <code>cms.example.com</code>.</li>
+  <li>Ports 80 and 443 open.</li>
+</ul>
+
+<h2>Install with Docker Compose</h2>
+<ol class="steps">
+  <li><p>Get the code and create the settings file:</p>
+
+```bash
+git clone https://github.com/byterings/byteringscms.git
+cd byteringscms
+cp .env.production.example .env.production
+```
+  </li>
+  <li><p>Edit <code>.env.production</code>. Set <code>DOMAIN</code> and replace every password and token. Generate secrets with <code>openssl rand -base64 32</code>.</p></li>
+  <li><p>Start everything:</p>
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+```
+  </li>
+  <li><p>Complete first-run setup (the <code>SETUP_TOKEN</code> protects it):</p>
+
+```bash
+curl -X POST https://cms.example.com/api/v1/setup \
+  -H 'content-type: application/json' -H "x-setup-token: $SETUP_TOKEN" \
+  -d '{"tenantName":"Acme","tenantSlug":"acme","name":"Ada","email":"ada@acme.com","password":"a long password"}'
+```
+  </li>
+  <li><p>Sign in at <code>https://cms.example.com/login</code>.</p></li>
+</ol>
+
+<h3>What runs</h3>
+<table>
+  <thead><tr><th>Service</th><th>Purpose</th><th>Exposed</th></tr></thead>
+  <tbody>
+    <tr><td><code>caddy</code></td><td>HTTPS with automatic certificates, forwards to the Admin Studio</td><td>80, 443</td></tr>
+    <tr><td><code>admin</code></td><td>Admin Studio and the same-origin <code>/api</code> proxy</td><td>internal</td></tr>
+    <tr><td><code>api</code></td><td>REST API. Applies database migrations on start</td><td>internal</td></tr>
+    <tr><td><code>postgres</code></td><td>PostgreSQL 17 with a restricted application role</td><td>internal</td></tr>
+    <tr><td><code>maintenance</code></td><td>Housekeeping job (run on a schedule)</td><td>job</td></tr>
+  </tbody>
+</table>
+<p>Both the Admin Studio and the API (including the <a href="./public-api.html">public API</a>) are served from your domain: <code>https://cms.example.com/api/v1/...</code>.</p>
+
+<h3>First-run setup from the server</h3>
+<p>Alternatively, run setup inside the API container without HTTP:</p>
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec \
+  -e SETUP_PASSWORD='a long password' api node dist/cli/setup.js \
+  --tenant-name Acme --tenant-slug acme --name Ada --email ada@acme.com
+```
+
+<h2>Schedule maintenance</h2>
+<p>Run daily, for example from cron at 03:00:</p>
+
+```bash
+0 3 * * * cd /srv/byteringscms && docker compose --env-file .env.production -f docker-compose.prod.yml run --rm maintenance
+```
+
+<p>It removes expired sessions, prunes old audit events and purges the trash. See <a href="./maintenance-monitoring.html">Maintenance &amp; monitoring</a>.</p>
+
+<h2>Media storage</h2>
+<p>By default, uploads are stored in the <code>media</code> Docker volume. To use S3, Cloudflare R2 or MinIO instead, set in <code>.env.production</code>:</p>
+
+```bash
+STORAGE_DRIVER=s3
+S3_BUCKET=my-cms-media
+S3_REGION=auto
+S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+```
+
+<h2>Native install (without Docker)</h2>
+<ol class="steps">
+  <li>Install Node.js 22+ (24 LTS recommended), pnpm 10 and PostgreSQL 16+.</li>
+  <li><p>Create the application role and database, build and migrate:</p>
+
+```bash
+pnpm install
+ADMIN_DATABASE_URL=postgresql://postgres:<pw>@localhost:5432/postgres \
+APP_DB_PASSWORD='<strong password>' pnpm db:setup-local
+cp apps/api/.env.example apps/api/.env      # set DATABASE_URL, NODE_ENV=production, SETUP_TOKEN …
+pnpm build && pnpm db:deploy
+```
+  </li>
+  <li><p>Run the two processes (use systemd or pm2 to keep them running):</p>
+
+```bash
+node apps/api/dist/main.js                                              # :4000
+API_URL=http://localhost:4000 pnpm --filter @byteringscms/admin start   # :3000
+```
+  </li>
+  <li>Put a TLS reverse proxy (Caddy or nginx) in front of port 3000 and set <code>TRUST_PROXY=true</code> on the API.</li>
+</ol>
+
+<div class="callout warn">
+  <strong>Before going live</strong>
+  <ul>
+    <li>Serve only over HTTPS and keep <code>COOKIE_SECURE=true</code>.</li>
+    <li>Expose only the reverse proxy. Keep the API and PostgreSQL private.</li>
+    <li>Set up <a href="./backup-restore.html">backups</a> and test a restore.</li>
+    <li>Read the <a href="./security.html">security checklist</a>.</li>
+  </ul>
+</div>
+
+<h2>Updating</h2>
+<ol class="steps">
+  <li>Take a <a href="./backup-restore.html">backup</a>.</li>
+  <li><code>git pull</code>, then run <code>docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build</code>. Migrations run automatically when the API starts.</li>
+  <li>Check <code>https://cms.example.com/api/v1/health/ready</code>.</li>
+</ol>
+<p>Migrations are forward-only. To roll back, restore the backup into a new database and deploy the previous version.</p>

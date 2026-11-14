@@ -1,0 +1,94 @@
+<!--
+title: Configuration reference
+nav: Configuration
+description: Every environment variable of the API and Admin Studio, with defaults.
+-->
+<h1>Configuration reference</h1>
+<p class="lead">The API is configured with environment variables, validated at startup. An invalid or missing value stops the process with a message that names it.</p>
+
+<h2>Core</h2>
+<table>
+  <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>DATABASE_URL</code></td><td><em>required</em></td><td>PostgreSQL URL of the application role (not a superuser)</td></tr>
+    <tr><td><code>NODE_ENV</code></td><td><code>development</code></td><td><code>production</code> on servers</td></tr>
+    <tr><td><code>PORT</code></td><td><code>4000</code></td><td>API port</td></tr>
+    <tr><td><code>TENANCY_MODE</code></td><td><code>single</code></td><td><code>single</code> (one organization) or <code>multi</code></td></tr>
+    <tr><td><code>SETUP_TOKEN</code></td><td>unset</td><td>If set, first-run setup requires the <code>x-setup-token</code> header (16+ characters)</td></tr>
+    <tr><td><code>CORS_ORIGINS</code></td><td>empty</td><td>Comma-separated browser origins allowed to call the API directly with cookies</td></tr>
+    <tr><td><code>TRUST_PROXY</code></td><td><code>false</code></td><td>Set <code>true</code> behind a reverse proxy so client IPs are correct</td></tr>
+  </tbody>
+</table>
+
+<h2>Sessions and security</h2>
+<table>
+  <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>SESSION_TTL_HOURS</code></td><td><code>168</code> (7 days)</td><td>Session lifetime</td></tr>
+    <tr><td><code>SESSION_COOKIE_NAME</code></td><td><code>bcms_session</code></td><td>Cookie name</td></tr>
+    <tr><td><code>COOKIE_SECURE</code></td><td><code>true</code> in production</td><td>Send cookies only over HTTPS</td></tr>
+    <tr><td><code>RATE_LIMIT_PER_MINUTE</code></td><td><code>600</code></td><td>Requests per minute per API key or IP</td></tr>
+    <tr><td><code>AUTH_RATE_LIMIT_PER_MINUTE</code></td><td><code>10</code></td><td>Login and setup attempts per minute per IP</td></tr>
+    <tr><td><code>MAX_JSON_BODY</code></td><td><code>1mb</code></td><td>Maximum JSON request body (<code>kb</code>/<code>mb</code>)</td></tr>
+  </tbody>
+</table>
+
+<h2>Media storage</h2>
+<table>
+  <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>STORAGE_DRIVER</code></td><td><code>local</code></td><td><code>local</code> or <code>s3</code></td></tr>
+    <tr><td><code>STORAGE_LOCAL_DIR</code></td><td><code>./storage</code></td><td>Folder for local uploads</td></tr>
+    <tr><td><code>MEDIA_MAX_BYTES</code></td><td>10 MB</td><td>Maximum upload size in bytes</td></tr>
+    <tr><td><code>S3_BUCKET</code></td><td></td><td>Required for <code>s3</code></td></tr>
+    <tr><td><code>S3_REGION</code></td><td><code>auto</code></td><td>Bucket region</td></tr>
+    <tr><td><code>S3_ENDPOINT</code></td><td></td><td>Custom endpoint (R2, MinIO, …)</td></tr>
+    <tr><td><code>S3_ACCESS_KEY_ID</code>, <code>S3_SECRET_ACCESS_KEY</code></td><td></td><td>Credentials (or use the environment's IAM role)</td></tr>
+    <tr><td><code>S3_FORCE_PATH_STYLE</code></td><td><code>false</code></td><td><code>true</code> for MinIO</td></tr>
+  </tbody>
+</table>
+
+<h2>Quotas and retention</h2>
+<table>
+  <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>TENANT_MAX_RECORDS</code></td><td><code>0</code> (unlimited)</td><td>Live records per workspace</td></tr>
+    <tr><td><code>TENANT_MAX_MEDIA_BYTES</code></td><td><code>0</code> (unlimited)</td><td>Media storage per workspace</td></tr>
+    <tr><td><code>AUDIT_RETENTION_DAYS</code></td><td><code>365</code></td><td>Audit events older than this are pruned by maintenance</td></tr>
+    <tr><td><code>TRASH_RETENTION_DAYS</code></td><td><code>30</code></td><td>Trashed records and media older than this are purged</td></tr>
+  </tbody>
+</table>
+
+<h2>Extensions and logging</h2>
+<table>
+  <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>TEMPLATES_DIR</code></td><td><code>&lt;repo&gt;/templates</code></td><td>Folder with template manifests</td></tr>
+    <tr><td><code>PLUGINS_DIR</code></td><td><code>&lt;repo&gt;/plugins</code></td><td>Folder with trusted plugins</td></tr>
+    <tr><td><code>PLUGIN_HOOK_TIMEOUT_MS</code></td><td><code>2000</code></td><td>Maximum time per plugin hook</td></tr>
+    <tr><td><code>LOG_LEVEL</code></td><td><code>info</code></td><td><code>fatal</code>, <code>error</code>, <code>warn</code>, <code>info</code>, <code>debug</code>, <code>trace</code>, <code>silent</code></td></tr>
+    <tr><td><code>LOG_FORMAT</code></td><td><code>json</code></td><td><code>json</code> for log collectors, <code>pretty</code> for development</td></tr>
+  </tbody>
+</table>
+
+<h2>Admin Studio</h2>
+<table>
+  <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>API_URL</code></td><td><code>http://localhost:4000</code></td><td>Where the Admin Studio forwards <code>/api</code> requests. Read at runtime</td></tr>
+    <tr><td><code>PORT</code></td><td><code>3000</code></td><td>Admin Studio port</td></tr>
+  </tbody>
+</table>
+
+<h2>Docker Compose settings</h2>
+<p><code>docker-compose.prod.yml</code> reads <code>.env.production</code>:</p>
+<table>
+  <thead><tr><th>Variable</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>DOMAIN</code></td><td>Public host name. Caddy gets a certificate for it</td></tr>
+    <tr><td><code>POSTGRES_PASSWORD</code></td><td>Database superuser (setup, backups, restores)</td></tr>
+    <tr><td><code>APP_DB_PASSWORD</code></td><td>Application role password</td></tr>
+    <tr><td><code>SETUP_TOKEN</code></td><td>Protects first-run setup</td></tr>
+    <tr><td><code>TENANCY_MODE</code>, <code>COOKIE_SECURE</code>, <code>LOG_LEVEL</code>, <code>STORAGE_DRIVER</code>, <code>S3_*</code>, <code>TENANT_MAX_*</code></td><td>Passed through to the API</td></tr>
+  </tbody>
+</table>

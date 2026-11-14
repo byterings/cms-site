@@ -1,0 +1,68 @@
+<!--
+title: Core concepts
+description: Tenants, users, roles, entities, fields, records, relations, templates and plugins explained.
+-->
+<h1>Core concepts</h1>
+<p class="lead">A short tour of the building blocks. Once these are clear, the rest of the platform follows.</p>
+
+<h2 id="tenants">Tenants (workspaces)</h2>
+<p>A <strong>tenant</strong> is an isolated workspace, usually one organization. All content, schemas, media, members, API keys and audit events belong to exactly one tenant.</p>
+<ul>
+  <li><strong>Single-tenant mode</strong> (<code>TENANCY_MODE=single</code>, the default): one organization per installation. Good for most self-hosted setups.</li>
+  <li><strong>Multi-tenant mode</strong> (<code>TENANCY_MODE=multi</code>): many organizations share one installation. Platform administrators create tenants, and users can belong to several and switch between them.</li>
+</ul>
+<p>Isolation is enforced twice: every query is filtered by tenant in the application, and PostgreSQL <strong>row-level security</strong> blocks access to other tenants' rows even if a query forgot its filter. Records of another tenant always look like <code>404 Not found</code>.</p>
+
+<h2>Users, members and roles</h2>
+<p>A <strong>user</strong> is a person with an email and password. A <strong>membership</strong> links a user to a tenant with one built-in <strong>role</strong>:</p>
+<table>
+  <thead><tr><th>Role</th><th>Can do</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Viewer</strong></td><td>Read content, media and schemas</td></tr>
+    <tr><td><strong>Editor</strong></td><td>Everything a viewer can, plus create, edit and delete content and media</td></tr>
+    <tr><td><strong>Admin</strong></td><td>Everything an editor can, plus manage schemas, members, API keys, templates and plugins, and read the audit log</td></tr>
+    <tr><td><strong>Owner</strong></td><td>Everything, including workspace settings and managing other owners</td></tr>
+  </tbody>
+</table>
+<p>A workspace always keeps at least one owner. Only owners can grant or remove the owner role.</p>
+
+<h2>Entities and fields</h2>
+<p>An <strong>entity</strong> is a content type such as <code>Article</code> or <code>Product</code>. It has:</p>
+<ul>
+  <li>a <strong>key</strong> used in URLs (<code>article</code>). Keys cannot change after creation;</li>
+  <li>a <strong>name</strong> and <strong>plural name</strong> shown in the UI;</li>
+  <li>a <strong>title field</strong> used to label records in lists and pickers;</li>
+  <li>optional <strong>public access</strong> settings for the <a href="./public-api.html">public API</a>;</li>
+  <li>a list of <strong>fields</strong>.</li>
+</ul>
+<p>A <strong>field</strong> has a key (<code>price</code>), a label, a <a href="./field-types.html">type</a>, type-specific settings (such as a minimum, or select options) and rules: <em>required</em>, <em>unique</em>, <em>default value</em>, <em>visible in the public API</em>, and the minimum role that may <em>read</em> or <em>write</em> it.</p>
+<div class="callout note">
+  <strong>Keys and types are permanent</strong>
+  <p>Field keys and types cannot be changed after creation, so stored values stay consistent. To change a type, create a new field and remove the old one. Every schema change is versioned, and the history is kept.</p>
+</div>
+
+<h2>Records</h2>
+<p>A <strong>record</strong> is one item of an entity, such as one product. Records are validated against the entity's fields on every write, both from the Admin Studio and from the API. Each record has:</p>
+<ul>
+  <li>a stable <code>id</code> (UUID), <code>createdAt</code>, <code>updatedAt</code>, <code>createdBy</code> and <code>updatedBy</code>;</li>
+  <li>a <code>version</code> number that increases on every change. Send it when updating to avoid overwriting someone else's edit (<em>optimistic concurrency</em>);</li>
+  <li>soft deletion: deleted records go to the <strong>trash</strong>, where admins can restore them or delete them permanently.</li>
+</ul>
+
+<h2>Relations</h2>
+<p>A <strong>relation field</strong> points to records of another entity in the same workspace, such as an article's author. It holds either one record or many. Targets are checked on every write, and the API can return the linked records inline with <code>?expand=author</code>.</p>
+
+<h2>Media</h2>
+<p>Uploaded files live in the <strong>media library</strong>. A <strong>media field</strong> references one or more files, optionally limited to images, videos, audio or documents. Uploads are checked by their actual content, not just their file name.</p>
+
+<h2>API keys</h2>
+<p>Websites, apps and scripts authenticate with <strong>API keys</strong>. Each key belongs to one workspace and carries <strong>scopes</strong> such as <code>records:read</code> or <code>metadata:write</code>. The secret is shown only once, and keys can expire and be revoked.</p>
+
+<h2>Templates</h2>
+<p>A <strong>template</strong> installs a ready-made set of entities and optional sample content. The first template is the <a href="./cms-template.html">Headless CMS</a>. Templates are versioned and can be <a href="./templates-plugins.html">upgraded</a> without losing your own changes.</p>
+
+<h2>Plugins</h2>
+<p><strong>Plugins</strong> are trusted extensions installed on the server by an administrator and enabled per workspace. They react to record changes, for example by setting a publish date automatically. See <a href="./templates-plugins.html#plugins">Templates &amp; plugins</a>.</p>
+
+<h2>Audit log</h2>
+<p>Sensitive operations are recorded: sign-ins, member and API key changes, schema changes, and record create, update and delete. The audit log records <em>which fields</em> changed, never their values.</p>

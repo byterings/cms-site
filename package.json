@@ -1,0 +1,27 @@
+{
+  "name": "byterings-docs",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "Documentation website for ByteRings CMS (Next.js, exported as a static site).",
+  "scripts": {
+    "dev": "next dev --port 3200",
+    "build": "next build",
+    "preview": "node scripts/preview.mjs",
+    "check-links": "node scripts/check-links.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "~15.5.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "~5.9.0"
+  },
+  "packageManager": "pnpm@10.34.9"
+}

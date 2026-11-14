@@ -1,0 +1,90 @@
+<!--
+title: Public content API
+nav: Public API
+description: Deliver published content to websites and apps without authentication.
+-->
+<h1>Public content API</h1>
+<p class="lead">The public API serves published content anonymously, so any website or app can display it without an API key. It is read-only and shows only what you explicitly make public.</p>
+
+<h2>What is public</h2>
+<p>A record is returned only when all of these are true:</p>
+<ol>
+  <li>Its entity has <strong>Allow anonymous read access</strong> enabled (entity settings → Public API).</li>
+  <li>If the entity has a <strong>publish field</strong>, the record's value matches the <strong>published when</strong> value, for example <code>status = published</code>.</li>
+  <li>The record is not in the trash.</li>
+</ol>
+<p>Only fields marked <strong>Visible in public API</strong> are included. Everything else, including internal fields, drafts and other entities, returns <code>404</code>, exactly as if it didn't exist.</p>
+
+<h2>Endpoints</h2>
+<p>The workspace is identified by its <strong>slug</strong> in the URL:</p>
+<table>
+  <thead><tr><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>GET /api/v1/public/{slug}/entities/{key}/records</code></td><td>List published records</td></tr>
+    <tr><td><code>GET /api/v1/public/{slug}/entities/{key}/records/{id}</code></td><td>One published record</td></tr>
+    <tr><td><code>GET /api/v1/public/{slug}/media/{id}/file</code></td><td>A file used by published content</td></tr>
+  </tbody>
+</table>
+<p>Listing supports the same <code>page</code>, <code>pageSize</code>, <code>sort</code>, <code>filter</code>, <code>search</code>, <code>fields</code> and <code>expand</code> parameters as the <a href="./rest-api.html#querying">REST API</a>, limited to public fields. Expanded relations include only public, published target records.</p>
+
+<h2>Caching</h2>
+<p>Record responses are sent with <code>Cache-Control: public, max-age=60, stale-while-revalidate=300</code>, and media files with one hour. Put a CDN in front for high traffic.</p>
+
+<h2>Media files</h2>
+<p>A file is served publicly only while a published, public record references it through a public media field. Unpublishing the record makes the file private again. Build image URLs like this:</p>
+
+```js
+const imageUrl = (slug, mediaId) => `https://cms.example.com/api/v1/public/${slug}/media/${mediaId}/file`;
+```
+
+<h2>Example: fetch with JavaScript</h2>
+
+```js
+const CMS = 'https://cms.example.com/api/v1/public/acme';
+
+export async function getArticles(page = 1) {
+  const url = new URL(`${CMS}/entities/article/records`);
+  url.searchParams.set('sort', '-publishedAt');
+  url.searchParams.set('expand', 'author,category');
+  url.searchParams.set('page', String(page));
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`CMS error ${res.status}`);
+  return res.json(); // { data: [...], meta: { page, pageSize, total, totalPages } }
+}
+
+export async function getArticle(slug) {
+  const res = await fetch(`${CMS}/entities/article/records?filter[slug]=${encodeURIComponent(slug)}&expand=author,tags`);
+  const { data } = await res.json();
+  return data[0] ?? null;
+}
+```
+
+<h2>Example: a blog in Next.js</h2>
+
+```tsx
+// app/blog/page.tsx
+const CMS = process.env.CMS_URL + '/api/v1/public/acme';
+
+export const revalidate = 60;
+
+export default async function Blog() {
+  const res = await fetch(`${CMS}/entities/article/records?sort=-publishedAt&expand=author`);
+  const { data } = await res.json();
+  return (
+    <main>
+      {data.map((article: any) => (
+        <a key={article.id} href={`/blog/${article.data.slug}`}>
+          <h2>{article.data.title}</h2>
+          <p>{article.data.excerpt}</p>
+          <small>by {article.data.author?.data.name}</small>
+        </a>
+      ))}
+    </main>
+  );
+}
+```
+
+<p>The same requests work from Vue/Nuxt, Astro, SvelteKit, mobile apps or any HTTP client.</p>
+
+<h2>Need drafts or private fields?</h2>
+<p>Use the authenticated <a href="./rest-api.html">REST API</a> with an API key that has the <code>records:read</code> scope, from your server only. Never put API keys in browser code.</p>

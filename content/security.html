@@ -1,0 +1,68 @@
+<!--
+title: Security
+description: How ByteRings CMS protects data - tenant isolation, authentication, permissions, uploads, logging - and a hardening checklist.
+-->
+<h1>Security</h1>
+<p class="lead">Security is built into the architecture, not added afterwards. This page explains the protections and what operators should do.</p>
+
+<h2>Tenant isolation</h2>
+<ul>
+  <li>The workspace of a request comes only from trusted sources: the signed-in session (checked against your membership on every request), the API key, or the workspace slug for public content. A workspace id sent by the client is never trusted.</li>
+  <li>Every query is filtered by workspace in the application code.</li>
+  <li>PostgreSQL <strong>row-level security</strong> is enabled and forced on every workspace table. Even a query that forgot its filter cannot read another workspace's rows. The application connects with a role that is not a superuser and cannot bypass these rules.</li>
+  <li>Relations, media references and unique values are always scoped to one workspace.</li>
+  <li>Automated tests try to read, change and list other workspaces' data on every resource type.</li>
+</ul>
+
+<h2>Authentication</h2>
+<ul>
+  <li>Passwords are hashed with <strong>Argon2id</strong> and must be at least 12 characters.</li>
+  <li>Browser sessions use random tokens in <code>httpOnly</code>, <code>SameSite=Lax</code> cookies (<code>Secure</code> in production). Only a hash of each token is stored, so sessions can be revoked instantly.</li>
+  <li>Every state-changing cookie request requires a CSRF token.</li>
+  <li>API keys are shown once and stored only as hashes. They can expire, be revoked, and carry least-privilege scopes.</li>
+  <li>Changing a password signs out all other sessions. Removing a member ends their access immediately.</li>
+  <li>Login and setup are rate limited. First-run setup can be protected with a token.</li>
+</ul>
+
+<h2>Authorization</h2>
+<ul>
+  <li>Built-in roles (viewer, editor, admin, owner) with a fixed permission matrix, enforced on the server for every request.</li>
+  <li>Field-level rules: fields can require a minimum role to read or write. Hidden fields are removed from responses and cannot be filtered, sorted or expanded.</li>
+  <li>The public API only shows entities, fields and records you explicitly publish.</li>
+</ul>
+
+<h2>Input and uploads</h2>
+<ul>
+  <li>Every input is validated against the schema on the server, including values returned by plugins.</li>
+  <li>Database queries are fully parameterized. Field names and operators are validated against the schema before they are used.</li>
+  <li>Uploads are limited to an allow-list of types and checked by their actual content. SVG is rejected. File names are sanitized, storage keys are generated, and downloads are served with a sandboxing Content-Security-Policy.</li>
+  <li>Request bodies, page sizes, filters and expansions have hard limits.</li>
+</ul>
+
+<h2>Privacy in logs and audit</h2>
+<ul>
+  <li>Logs never contain request bodies, query strings, credentials or tokens.</li>
+  <li>The audit log records which fields changed, never their values.</li>
+</ul>
+
+<h2>Operator checklist</h2>
+<ul>
+  <li>☐ Serve only over HTTPS, and keep <code>COOKIE_SECURE=true</code>.</li>
+  <li>☐ Set a strong <code>SETUP_TOKEN</code> until setup is complete.</li>
+  <li>☐ Expose only the reverse proxy. Keep the API and PostgreSQL on a private network.</li>
+  <li>☐ Use unique, generated passwords for <code>POSTGRES_PASSWORD</code> and <code>APP_DB_PASSWORD</code>.</li>
+  <li>☐ Never give the application role superuser or <code>BYPASSRLS</code> rights.</li>
+  <li>☐ Give API keys only the scopes they need, with expiry dates, and never put them in browser code.</li>
+  <li>☐ Install only plugins you have reviewed.</li>
+  <li>☐ Back up daily, encrypt backups, and test restores.</li>
+  <li>☐ Keep dependencies and images updated. CI runs <code>pnpm audit</code>.</li>
+</ul>
+
+<h2>Known limitations</h2>
+<ul>
+  <li>Rate-limit counters are kept in memory, which suits one API instance. Several instances need a shared store.</li>
+  <li>Multi-factor authentication and single sign-on are not available yet.</li>
+</ul>
+
+<h2>Reporting a vulnerability</h2>
+<p>Please report security issues privately to the maintainers through the repository's security advisory feature instead of a public issue.</p>

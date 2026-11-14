@@ -1,0 +1,78 @@
+<!--
+title: Headless CMS template
+nav: CMS template
+description: Install the Headless CMS template with articles, pages, categories, tags and authors, and publish content.
+-->
+<h1>Headless CMS template</h1>
+<p class="lead">A ready-made blog and website content model: articles, pages, categories, tags and authors, with slugs, SEO fields, cover images and a draft/published workflow.</p>
+
+<h2>Install</h2>
+<ol class="steps">
+  <li>Open <strong>Build → Templates &amp; plugins</strong> (admins and owners).</li>
+  <li>On <strong>Headless CMS</strong>, keep <em>Include sample content</em> ticked if you want example records.</li>
+  <li>Click <strong>Install Headless CMS</strong>. The new content types appear in the sidebar.</li>
+</ol>
+<p>With the API: <code>POST /api/v1/admin/templates/cms/install</code> with body <code>{"sampleData": true}</code>.</p>
+<div class="callout warn">
+  <strong>Key conflicts</strong>
+  <p>Installation is refused if your workspace already has an entity with one of the template's keys (<code>article</code>, <code>page</code>, <code>category</code>, <code>tag</code>, <code>author</code>). Nothing is changed in that case.</p>
+</div>
+
+<h2>Content model</h2>
+<h3>Article</h3>
+<table>
+  <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>title</code></td><td>text</td><td>Required, up to 200 characters</td></tr>
+    <tr><td><code>slug</code></td><td>text (slug)</td><td>Required, unique, filled from the title in the editor</td></tr>
+    <tr><td><code>status</code></td><td>select</td><td><code>draft</code> (default) or <code>published</code></td></tr>
+    <tr><td><code>excerpt</code></td><td>long text</td><td>Short summary for listings, up to 500 characters</td></tr>
+    <tr><td><code>body</code></td><td>long text (Markdown)</td><td>Required</td></tr>
+    <tr><td><code>coverImage</code></td><td>media (image)</td><td></td></tr>
+    <tr><td><code>author</code></td><td>relation → Author</td><td></td></tr>
+    <tr><td><code>category</code></td><td>relation → Category</td><td></td></tr>
+    <tr><td><code>tags</code></td><td>relation → Tag (many)</td><td>Up to 20</td></tr>
+    <tr><td><code>publishedAt</code></td><td>date-time</td><td>Set automatically by the publishing plugin</td></tr>
+    <tr><td><code>featured</code></td><td>boolean</td><td>Default false</td></tr>
+    <tr><td><code>seoTitle</code> / <code>seoDescription</code></td><td>text</td><td>Up to 70 / 160 characters</td></tr>
+  </tbody>
+</table>
+<h3>Page</h3>
+<p><code>title</code>, <code>slug</code>, <code>status</code>, <code>body</code>, <code>seoTitle</code>, <code>seoDescription</code>, for standalone pages such as <em>About</em> or <em>Contact</em>.</p>
+<h3>Category, Tag and Author</h3>
+<ul>
+  <li><strong>Category:</strong> <code>name</code>, <code>slug</code>, <code>description</code></li>
+  <li><strong>Tag:</strong> <code>name</code>, <code>slug</code></li>
+  <li><strong>Author:</strong> <code>name</code>, <code>slug</code>, <code>bio</code>, <code>avatar</code>, and <code>email</code>. The email is internal and never published.</li>
+</ul>
+
+<h2>Publishing workflow</h2>
+<ol class="steps">
+  <li>Create an article. It starts as <strong>Draft</strong> and is invisible to the public API.</li>
+  <li>Set <strong>Status</strong> to <strong>Published</strong> and save. It appears in the public API immediately.</li>
+  <li>To unpublish, set the status back to Draft. The article and its images disappear from the public API.</li>
+</ol>
+<p>Articles and pages are configured with <em>public read</em> enabled, a <em>publish field</em> of <code>status</code> and a <em>publish value</em> of <code>published</code>. Categories, tags and authors are public without a publish step.</p>
+
+<h2>Publishing helpers plugin</h2>
+<p>Enable the <strong>CMS publishing helpers</strong> plugin under <em>Templates &amp; plugins</em> to:</p>
+<ul>
+  <li>set <code>publishedAt</code> automatically the first time an article or page is published;</li>
+  <li>fill an empty <code>seoTitle</code> from the title.</li>
+</ul>
+
+<h2>Show content on your website</h2>
+<p>Use the anonymous <a href="./public-api.html">public API</a>. For a workspace with the slug <code>acme</code>:</p>
+
+```bash
+# Latest published articles with author and category
+curl "https://cms.example.com/api/v1/public/acme/entities/article/records?sort=-publishedAt&expand=author,category&pageSize=10"
+
+# One article by slug
+curl "https://cms.example.com/api/v1/public/acme/entities/article/records?filter[slug]=hello-world&expand=author,tags"
+```
+
+<p>See <a href="./public-api.html#example-a-blog-in-next-js">a complete website example</a>.</p>
+
+<h2>Customizing</h2>
+<p>You can add your own fields to template entities and change template settings. Your changes are kept when the template is upgraded: customized definitions are marked and skipped, and your own fields are never touched. See <a href="./templates-plugins.html#template-upgrades">Template upgrades</a>.</p>

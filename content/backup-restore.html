@@ -1,0 +1,77 @@
+<!--
+title: Backup and restore
+nav: Backup & restore
+description: Back up the database and media files, restore into a new database, and run restore drills.
+-->
+<h1>Backup and restore</h1>
+<p class="lead">A backup contains the database (a <code>pg_dump</code> archive) and the uploaded media files, plus a manifest with checksums. Restores always go into a new, empty database.</p>
+
+<div class="callout warn">
+  <strong>Use a privileged database role</strong>
+  <p>Backups and restores must connect as a role that bypasses row-level security: the <code>postgres</code> superuser, or a dedicated role with <code>BYPASSRLS</code> and <code>pg_read_all_data</code>. The application role only sees one workspace at a time, so a dump made with it would be empty.</p>
+</div>
+
+<h2>Requirements</h2>
+<ul>
+  <li>Node.js 22+ and the repository (the scripts are in <code>scripts/</code>).</li>
+  <li>PostgreSQL client tools of the same major version as the server (<code>pg_dump</code>, <code>pg_restore</code>, <code>psql</code>). If they are not on <code>PATH</code>, set <code>PG_BIN</code> to their folder.</li>
+</ul>
+
+<h2>Create a backup</h2>
+
+```bash
+node scripts/backup.mjs \
+  --database-url "postgresql://postgres:$POSTGRES_PASSWORD@db-host:5432/byterings" \
+  --storage /path/to/media \
+  --out /srv/backups
+```
+
+<p>This creates <code>/srv/backups/&lt;timestamp&gt;/</code> with:</p>
+<ul>
+  <li><code>database.dump</code>: compressed <code>pg_dump</code> archive</li>
+  <li><code>storage.tar</code>: the media files (local storage driver)</li>
+  <li><code>manifest.json</code>: date, tool version, sizes and SHA-256 checksums</li>
+</ul>
+<p>With <code>STORAGE_DRIVER=s3</code>, protect the bucket with your provider's versioning or replication, and back up the database with the command above (omit <code>--storage</code>).</p>
+
+<h3>Recommended policy</h3>
+<table>
+  <thead><tr><th>What</th><th>How often</th><th>Keep</th></tr></thead>
+  <tbody>
+    <tr><td>Database + media</td><td>Daily</td><td>14 daily, 8 weekly</td></tr>
+    <tr><td>Off-site copy</td><td>Weekly</td><td>Encrypted (restic, borg, or object storage with encryption)</td></tr>
+    <tr><td>Restore drill</td><td>Quarterly</td><td>Write down the result</td></tr>
+  </tbody>
+</table>
+<p>Backups contain personal data and password hashes. Encrypt them and restrict access.</p>
+
+<h2>Restore</h2>
+<ol class="steps">
+  <li><p>Create a new, empty database owned by the application role (the role must exist):</p>
+
+```bash
+createdb -U postgres -O byterings byterings_restored
+```
+  </li>
+  <li><p>Restore:</p>
+
+```bash
+node scripts/restore.mjs \
+  --from /srv/backups/2026-11-14T03-00-00-000Z \
+  --database-url "postgresql://postgres:$POSTGRES_PASSWORD@db-host:5432/byterings_restored" \
+  --storage /path/to/new-media-folder \
+  --confirm
+```
+  </li>
+  <li>Point <code>DATABASE_URL</code> and the media folder or volume at the restored copies and restart the API.</li>
+</ol>
+<p>The restore script refuses to run without <code>--confirm</code>, verifies checksums first, refuses targets that already contain tables or files, restores in a single transaction, and keeps the original owners so row-level security keeps working.</p>
+
+<h2>Restore drills</h2>
+<p>The project includes an automated drill (<code>apps/api/test/restore-drill.test.ts</code>). It fills an installation with data, backs it up, restores it into an empty database, signs in, and checks records and media byte for byte. It runs in CI. Run it locally with:</p>
+
+```bash
+PG_BIN=/usr/lib/postgresql/17/bin pnpm --filter @byteringscms/api test -- restore-drill
+```
+
+<p>A backup that has never been restored is only a hope. Restore real production backups into a scratch environment regularly.</p>
