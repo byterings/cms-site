@@ -99,9 +99,9 @@ export function Search() {
       <input
         ref={input}
         type="search"
-        placeholder="Search docs…"
+        placeholder="Search…"
         autoComplete="off"
-        aria-label="Search documentation"
+        aria-label="Search the site"
         aria-controls="search-results"
         aria-expanded={open && query.trim().length > 0}
         role="combobox"

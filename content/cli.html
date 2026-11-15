@@ -1,10 +1,10 @@
 <!--
 title: CLI and schema as code
 nav: CLI & schema as code
-description: Keep your content model in Git with the byterings CLI - export, diff, push and type generation.
+description: Keep your content model in Git with the bytecontent CLI - export, diff, push and type generation.
 -->
 <h1>CLI and schema as code</h1>
-<p class="lead">The <code>byterings</code> CLI keeps your content model in version control. Export the schema to JSON files, review changes in pull requests, and push them to any environment with a preview first.</p>
+<p class="lead">The <code>bytecontent</code> CLI keeps your content model in version control. Export the schema to JSON files, review changes in pull requests, and push them to any environment with a preview first.</p>
 
 <h2>Setup</h2>
 <p>Build the workspace once (<code>pnpm build</code>), then run the CLI with Node.js:</p>
@@ -16,19 +16,19 @@ node packages/cli/dist/index.js --help
 <p>Connect it with environment variables or flags:</p>
 
 ```bash
-export BYTERINGS_URL=https://cms.example.com
-export BYTERINGS_API_KEY=bcms_xxxxxxxx_secret   # scopes: metadata:read, metadata:write
+export BYTECONTENT_URL=https://cms.example.com
+export BYTECONTENT_API_KEY=bcms_xxxxxxxx_secret   # scopes: metadata:read, metadata:write
 ```
 
 <h2>Commands</h2>
 <table>
   <thead><tr><th>Command</th><th>Description</th></tr></thead>
   <tbody>
-    <tr><td><code>byterings entities:list</code></td><td>List entities with field counts, versions and status</td></tr>
-    <tr><td><code>byterings export [-d dir]</code></td><td>Write the schema to <code>&lt;dir&gt;/entities/&lt;key&gt;.json</code></td></tr>
-    <tr><td><code>byterings schema:diff [-d dir] [--prune]</code></td><td>Show what a push would change (read-only)</td></tr>
-    <tr><td><code>byterings schema:push [-d dir] [--prune] [-y] [--allow-destructive]</code></td><td>Show the plan, confirm and apply it atomically (<code>import</code> is an alias)</td></tr>
-    <tr><td><code>byterings types [-o file]</code></td><td>Generate TypeScript interfaces for your entities</td></tr>
+    <tr><td><code>bytecontent entities:list</code></td><td>List entities with field counts, versions and status</td></tr>
+    <tr><td><code>bytecontent export [-d dir]</code></td><td>Write the schema to <code>&lt;dir&gt;/entities/&lt;key&gt;.json</code></td></tr>
+    <tr><td><code>bytecontent schema:diff [-d dir] [--prune]</code></td><td>Show what a push would change (read-only)</td></tr>
+    <tr><td><code>bytecontent schema:push [-d dir] [--prune] [-y] [--allow-destructive]</code></td><td>Show the plan, confirm and apply it atomically (<code>import</code> is an alias)</td></tr>
+    <tr><td><code>bytecontent types [-o file]</code></td><td>Generate TypeScript interfaces for your entities</td></tr>
   </tbody>
 </table>
 
@@ -56,13 +56,13 @@ export BYTERINGS_API_KEY=bcms_xxxxxxxx_secret   # scopes: metadata:read, metadat
 
 <h3>A typical workflow</h3>
 <ol class="steps">
-  <li>Run <code>byterings export</code> against development and commit the <code>entities/</code> folder.</li>
+  <li>Run <code>bytecontent export</code> against development and commit the <code>entities/</code> folder.</li>
   <li>Change files (or change the schema in the Admin Studio and export again) and open a pull request.</li>
-  <li>In staging or production, run <code>byterings schema:diff</code> to review the plan, then <code>byterings schema:push</code>.</li>
+  <li>In staging or production, run <code>bytecontent schema:diff</code> to review the plan, then <code>bytecontent schema:push</code>.</li>
 </ol>
 
 ```text
-$ byterings schema:push
+$ bytecontent schema:push
 Plan: 3 change(s)
   + createEntity event
   + createField event.title
@@ -85,7 +85,7 @@ Applied 3 change(s).
 <h2>Generate types</h2>
 
 ```bash
-byterings types --out src/cms-types.ts
+bytecontent types --out src/cms-types.ts
 ```
 
 ```ts

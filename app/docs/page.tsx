@@ -7,12 +7,13 @@ const page = () => getPage('index')!;
 
 export function generateMetadata(): Metadata {
   return {
-    title: { absolute: `${siteConfig.name} documentation` },
+    title: `Documentation`,
     description: page().description,
-    alternates: { canonical: '/' },
+    alternates: { canonical: '/docs/' },
+    openGraph: { title: `${siteConfig.name} documentation`, description: page().description },
   };
 }
 
-export default function HomePage() {
+export default function DocsHome() {
   return <DocView page={page()} />;
 }

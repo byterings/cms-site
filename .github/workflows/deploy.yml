@@ -1,4 +1,4 @@
-name: Deploy documentation
+name: Deploy website
 
 # Builds the static export and publishes it to GitHub Pages.
 # Enable it in the repository: Settings -> Pages -> Source: GitHub Actions.

@@ -33,8 +33,8 @@ export function DocView({ page }: { page: DocPage }) {
         </nav>
         <footer className="footer">
           <p>
-            {siteConfig.name} is open source under the GNU AGPL-3.0.{' '}
-            <a href={siteConfig.repository}>Source code</a>
+            {siteConfig.name} by {siteConfig.company} is open source under the MIT License.{' '}
+            <a href={siteConfig.repository}>Edit on GitHub</a>
           </p>
         </footer>
       </main>

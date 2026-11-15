@@ -1,9 +1,9 @@
 {
-  "name": "byterings-docs",
+  "name": "bytecontent-website",
   "version": "0.1.0",
   "private": true,
-  "license": "AGPL-3.0-only",
-  "description": "Documentation website for ByteRings CMS (Next.js, exported as a static site).",
+  "license": "MIT",
+  "description": "ByteContent product website and documentation (Next.js, exported as a static site).",
   "scripts": {
     "dev": "next dev --port 3200",
     "build": "next build",

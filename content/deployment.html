@@ -1,7 +1,7 @@
 <!--
 title: Deploy to production
 nav: Deployment
-description: Install ByteRings CMS on a server with Docker Compose and automatic HTTPS, or natively with Node.js.
+description: Install ByteContent on a server with Docker Compose and automatic HTTPS, or natively with Node.js.
 -->
 <h1>Deploy to production</h1>
 <p class="lead">The recommended setup is Docker Compose: PostgreSQL, the API, the Admin Studio and Caddy for automatic HTTPS, on one server.</p>
@@ -18,8 +18,8 @@ description: Install ByteRings CMS on a server with Docker Compose and automatic
   <li><p>Get the code and create the settings file:</p>
 
 ```bash
-git clone https://github.com/byterings/byteringscms.git
-cd byteringscms
+git clone https://github.com/byterings/bytecontent.git
+cd bytecontent
 cp .env.production.example .env.production
 ```
   </li>
@@ -67,7 +67,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml exec \
 <p>Run daily, for example from cron at 03:00:</p>
 
 ```bash
-0 3 * * * cd /srv/byteringscms && docker compose --env-file .env.production -f docker-compose.prod.yml run --rm maintenance
+0 3 * * * cd /srv/bytecontent && docker compose --env-file .env.production -f docker-compose.prod.yml run --rm maintenance
 ```
 
 <p>It removes expired sessions, prunes old audit events and purges the trash. See <a href="./maintenance-monitoring.html">Maintenance &amp; monitoring</a>.</p>
@@ -101,7 +101,7 @@ pnpm build && pnpm db:deploy
 
 ```bash
 node apps/api/dist/main.js                                              # :4000
-API_URL=http://localhost:4000 pnpm --filter @byteringscms/admin start   # :3000
+API_URL=http://localhost:4000 pnpm --filter @bytecontent/admin start   # :3000
 ```
   </li>
   <li>Put a TLS reverse proxy (Caddy or nginx) in front of port 3000 and set <code>TRUST_PROXY=true</code> on the API.</li>

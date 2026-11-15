@@ -4,12 +4,12 @@ nav: TypeScript SDK
 description: Use the typed TypeScript client to read and write records, manage entities and sync configuration.
 -->
 <h1>TypeScript SDK</h1>
-<p class="lead"><code>@byteringscms/sdk</code> is a small, typed client for the REST API. It works in Node.js 18+, Deno, Bun, edge runtimes and browsers.</p>
+<p class="lead"><code>@bytecontent/sdk</code> is a small, typed client for the REST API. It works in Node.js 18+, Deno, Bun, edge runtimes and browsers.</p>
 
 <h2>Create a client</h2>
 
 ```ts
-import { createClient } from '@byteringscms/sdk';
+import { createClient } from '@bytecontent/sdk';
 
 const cms = createClient({
   baseUrl: 'https://cms.example.com', // /api/v1 is added automatically
@@ -61,7 +61,7 @@ for await (const product of cms.iterate<Product>('product', { filter: { isActive
 <p>Failed requests throw <code>PlatformError</code> with the HTTP <code>status</code>, the stable <code>code</code> and optional <code>details</code>:</p>
 
 ```ts
-import { PlatformError } from '@byteringscms/sdk';
+import { PlatformError } from '@bytecontent/sdk';
 
 try {
   await products.update(id, { price: '1.00' }, { version: 1 });

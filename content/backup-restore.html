@@ -71,7 +71,7 @@ node scripts/restore.mjs \
 <p>The project includes an automated drill (<code>apps/api/test/restore-drill.test.ts</code>). It fills an installation with data, backs it up, restores it into an empty database, signs in, and checks records and media byte for byte. It runs in CI. Run it locally with:</p>
 
 ```bash
-PG_BIN=/usr/lib/postgresql/17/bin pnpm --filter @byteringscms/api test -- restore-drill
+PG_BIN=/usr/lib/postgresql/17/bin pnpm --filter @bytecontent/api test -- restore-drill
 ```
 
 <p>A backup that has never been restored is only a hope. Restore real production backups into a scratch environment regularly.</p>

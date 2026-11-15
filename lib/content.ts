@@ -16,7 +16,8 @@ import { siteConfig } from '@/site.config';
  *
  * Markdown-style fenced code blocks (```lang ... ```) are HTML-escaped and
  * get a copy button. <h2>/<h3> get ids and feed the outline and search.
- * Links written as ./page.html#anchor become site routes.
+ * Links written as ./page.html#anchor become docs routes; links written as
+ * site:/path/ point to other site pages (the base path is added).
  */
 
 export interface TocItem {
@@ -67,7 +68,7 @@ const slugify = (text: string) =>
 
 /** Route of a page, relative to the site root (without base path). */
 export function routeOf(slug: string): string {
-  return slug === 'index' ? '/' : `/${slug}/`;
+  return slug === 'index' ? '/docs/' : `/docs/${slug}/`;
 }
 
 function parse(slug: string): DocPage {
@@ -96,6 +97,9 @@ function parse(slug: string): DocPage {
     if (!pageSlugs().includes(page)) throw new Error(`content/${slug}.html links to unknown page "${page}"`);
     return `href="${basePath}${routeOf(page)}${hash}"`;
   });
+
+  // Other site pages: site:/marketplace/ -> /marketplace/ (with base path).
+  html = html.replace(/href="site:(\/[^"]*)"/g, (_m, path: string) => `href="${basePath}${path}"`);
 
   // Heading ids + outline.
   const toc: TocItem[] = [];
