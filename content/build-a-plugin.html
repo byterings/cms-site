@@ -1,0 +1,98 @@
+<!--
+title: Build a plugin
+description: Write a ByteContent plugin step by step - a manifest, a register function and record hooks - and enable it for a workspace.
+-->
+<h1>Build a plugin</h1>
+<p class="lead">Plugins add behaviour to ByteContent: fill fields automatically, enforce rules, or notify other systems when content changes. In this guide you build a plugin that calculates the reading time of articles.</p>
+
+<div class="callout">
+  <strong>How plugins run</strong>
+  <p>Plugins are trusted code installed on the server by an administrator and enabled per workspace. They receive record data only - no database access - and every change they return is validated like user input. See the <a href="./plugin-sdk.html">Plugin SDK reference</a> for the full contract.</p>
+</div>
+
+<h2>1. Prepare the content model</h2>
+<p>Install the <a href="./cms-template.html">CMS template</a>, then add an <strong>Integer</strong> field with the key <code>readingTime</code> to the <code>article</code> entity in the Admin Studio.</p>
+
+<h2>2. Create the plugin folder</h2>
+<p>Plugins live in the server's plugins directory (<code>plugins/</code> in the project, or the folder set in <code>PLUGINS_DIR</code>). Each plugin is a folder with a manifest and a module:</p>
+
+```text
+plugins/
+  reading-time/
+    plugin.json
+    index.js
+```
+
+<h2>3. Write the manifest</h2>
+
+```json
+{
+  "id": "reading-time",
+  "name": "Reading time",
+  "version": "1.0.0",
+  "description": "Calculates the reading time of articles from their body.",
+  "capabilities": ["records:modify"],
+  "entities": ["article"],
+  "main": "index.js"
+}
+```
+
+<p><code>capabilities</code> declares what the plugin may do. A before-hook needs <code>records:modify</code>; registering a hook without its capability fails when the plugin loads. <code>entities</code> limits the plugin to articles.</p>
+
+<h2>4. Write the module</h2>
+
+```js
+'use strict';
+
+const WORDS_PER_MINUTE = 220;
+
+/** @param {import('@bytecontent/contracts').PluginApi} api */
+function register(api) {
+  const readingTime = ({ fields, data }) => {
+    if (!fields.includes('readingTime') || typeof data.body !== 'string') return;
+    const words = data.body.trim().split(/\s+/).filter(Boolean).length;
+    return { readingTime: Math.max(1, Math.round(words / WORDS_PER_MINUTE)) };
+  };
+
+  api.on('record.beforeCreate', readingTime);
+  api.on('record.beforeUpdate', readingTime);
+}
+
+module.exports = { register };
+```
+
+<ul>
+  <li>The handler receives the record <code>data</code> after the requested changes, the entity's field keys, and (for updates) the <code>previous</code> data.</li>
+  <li>It returns only the fields it wants to change. Returning nothing changes nothing.</li>
+  <li>Throwing an error rejects the change; the API answers <code>422 PLUGIN_REJECTED</code> with your message.</li>
+</ul>
+
+<h2>5. Load and enable it</h2>
+<ol class="steps">
+  <li>Restart the API. The log shows <code>Loaded plugin reading-time@1.0.0</code>, or the reason it failed to load.</li>
+  <li>In the Admin Studio, open <strong>Templates &amp; plugins</strong> and enable <strong>Reading time</strong> for the workspace. The change is recorded in the audit log.</li>
+  <li>Create or edit an article: <code>readingTime</code> is filled in automatically.</li>
+</ol>
+
+<h2>React to changes with after-hooks</h2>
+<p>After-hooks run once a change is committed. They are suited to notifications and integrations, need the <code>records:observe</code> capability, and cannot change data. Failures are logged and never undo the change.</p>
+
+```js
+api.on('record.afterUpdate', async ({ entity, recordId, data }) => {
+  if (data.status === 'published') {
+    await fetch(process.env.REBUILD_HOOK_URL, { method: 'POST' });
+    api.log(`${entity} ${recordId} published, rebuild triggered`);
+  }
+});
+```
+
+<h2>Good practice</h2>
+<ul>
+  <li><strong>Be fast.</strong> Hooks have a time limit (<code>PLUGIN_HOOK_TIMEOUT_MS</code>, 2 seconds by default). A slow before-hook fails the request with <code>503 PLUGIN_TIMEOUT</code>.</li>
+  <li><strong>Check fields exist</strong> with <code>fields.includes(...)</code>; workspaces can change their schema.</li>
+  <li><strong>Ask for the fewest capabilities</strong> you need, and limit <code>entities</code> where you can.</li>
+  <li><strong>Keep secrets in environment variables</strong>, never in the plugin folder.</li>
+</ul>
+
+<h2>Share it</h2>
+<p>Publish the plugin on GitHub or npm, or submit it to the <a href="site:/marketplace/publish/">ByteContent marketplace</a> as a free or paid plugin.</p>

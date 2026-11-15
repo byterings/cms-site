@@ -1,0 +1,121 @@
+<!--
+title: Plugin SDK reference
+nav: Plugin SDK
+description: Reference for ByteContent plugins - the manifest, capabilities, hooks, payloads, errors and limits.
+-->
+<h1>Plugin SDK reference</h1>
+<p class="lead">The complete contract between ByteContent and a plugin. Types are exported from <code>@bytecontent/contracts</code> today and will move to the dedicated <code>@bytecontent/plugin-sdk</code> package.</p>
+
+<h2>Manifest</h2>
+<p>Every plugin folder contains a <code>plugin.json</code>:</p>
+<table>
+  <thead><tr><th>Key</th><th>Type</th><th>Rules</th></tr></thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>string</td><td>Required. Lower case letters, digits and dashes, starting with a letter (2-63 characters). Unique on the server.</td></tr>
+    <tr><td><code>name</code></td><td>string</td><td>Required. Display name, up to 120 characters.</td></tr>
+    <tr><td><code>version</code></td><td>string</td><td>Required. <code>MAJOR.MINOR.PATCH</code>.</td></tr>
+    <tr><td><code>description</code></td><td>string</td><td>Optional, up to 2000 characters. Shown in the Admin Studio.</td></tr>
+    <tr><td><code>capabilities</code></td><td>string[]</td><td>Required, at least one. See below.</td></tr>
+    <tr><td><code>entities</code></td><td>string[]</td><td>Optional. Entity keys the plugin applies to; omit for all entities.</td></tr>
+    <tr><td><code>main</code></td><td>string</td><td>Optional, default <code>index.js</code>. A CommonJS file (<code>.js</code> or <code>.cjs</code>) inside the plugin folder.</td></tr>
+  </tbody>
+</table>
+
+<h2>Capabilities</h2>
+<table>
+  <thead><tr><th>Capability</th><th>Allows</th></tr></thead>
+  <tbody>
+    <tr><td><code>records:modify</code></td><td>Registering before-hooks that change record data before it is saved</td></tr>
+    <tr><td><code>records:observe</code></td><td>Registering after-hooks that see records after they are saved or deleted</td></tr>
+  </tbody>
+</table>
+<p>Registering a hook without the matching capability throws while the plugin loads, and the plugin is not loaded.</p>
+
+<h2>Module</h2>
+<p>The module exports a <code>register(api)</code> function, called once when the API starts:</p>
+
+```ts
+interface PluginApi {
+  on(event: 'record.beforeCreate' | 'record.beforeUpdate', handler: BeforeHookHandler): void;
+  on(event: 'record.afterCreate' | 'record.afterUpdate' | 'record.afterDelete', handler: AfterHookHandler): void;
+  /** Writes to the API log, prefixed with the plugin id. */
+  log(message: string): void;
+}
+
+interface PluginModule {
+  register(api: PluginApi): void;
+}
+```
+
+<h2>Hooks</h2>
+<table>
+  <thead><tr><th>Hook</th><th>Runs</th><th>Capability</th></tr></thead>
+  <tbody>
+    <tr><td><code>record.beforeCreate</code></td><td>Before a record is created, inside the transaction</td><td><code>records:modify</code></td></tr>
+    <tr><td><code>record.beforeUpdate</code></td><td>Before a record is updated, inside the transaction</td><td><code>records:modify</code></td></tr>
+    <tr><td><code>record.afterCreate</code></td><td>After the create is committed</td><td><code>records:observe</code></td></tr>
+    <tr><td><code>record.afterUpdate</code></td><td>After the update is committed</td><td><code>records:observe</code></td></tr>
+    <tr><td><code>record.afterDelete</code></td><td>After the (soft) delete is committed</td><td><code>records:observe</code></td></tr>
+  </tbody>
+</table>
+<p>Hooks only run for workspaces where the plugin is enabled, and only for the entities listed in the manifest. When several plugins are enabled they run one after another (in plugin folder order); each before-hook sees the changes of the previous ones.</p>
+
+<h3>Before-hook payload</h3>
+
+```ts
+interface BeforeHookPayload {
+  tenantId: string;
+  entity: string;                                   // entity key, e.g. "article"
+  fields: readonly string[];                        // field keys of the entity
+  data: Readonly<Record<string, unknown>>;          // record data after the requested changes
+  previous: Readonly<Record<string, unknown>> | null; // stored data (updates only)
+}
+
+type BeforeHookHandler = (payload: BeforeHookPayload) =>
+  Record<string, unknown> | void | Promise<Record<string, unknown> | void>;
+```
+
+<p>Return an object with the fields to change. The result is merged into the record and <strong>validated against the entity's metadata</strong> exactly like user input, so a plugin cannot store invalid values or bypass field rules. Payload objects are frozen copies.</p>
+
+<h3>After-hook payload</h3>
+
+```ts
+interface AfterHookPayload {
+  tenantId: string;
+  entity: string;
+  recordId: string;
+  data: Readonly<Record<string, unknown>>;
+}
+
+type AfterHookHandler = (payload: AfterHookPayload) => void | Promise<void>;
+```
+
+<h2>Errors and limits</h2>
+<table>
+  <thead><tr><th>Situation</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>A before-hook throws</td><td>The change is rejected: <code>422 PLUGIN_REJECTED</code> with the error message</td></tr>
+    <tr><td>A before-hook exceeds the time limit</td><td>The change is rejected: <code>503 PLUGIN_TIMEOUT</code></td></tr>
+    <tr><td>A returned value is invalid for the field</td><td>The usual <code>422</code> validation error</td></tr>
+    <tr><td>An after-hook throws or times out</td><td>A warning is logged; the committed change stays</td></tr>
+  </tbody>
+</table>
+<p>The time limit is <code>PLUGIN_HOOK_TIMEOUT_MS</code> (default 2000 ms, maximum 60000 ms).</p>
+
+<h2>Server settings</h2>
+<table>
+  <thead><tr><th>Variable</th><th>Default</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>PLUGINS_DIR</code></td><td><code>plugins/</code> in the project</td><td>Folder scanned for plugins at startup</td></tr>
+    <tr><td><code>PLUGIN_HOOK_TIMEOUT_MS</code></td><td><code>2000</code></td><td>Time limit per hook call</td></tr>
+  </tbody>
+</table>
+
+<h2>Security model</h2>
+<ul>
+  <li>Only server administrators can install plugins, by placing them in the plugins folder. Workspaces can enable or disable installed plugins, nothing more.</li>
+  <li>Plugins run in the API process. Install only plugins you trust - review the code, or use plugins reviewed for the marketplace.</li>
+  <li>Enabling and disabling a plugin is recorded in the audit log.</li>
+</ul>
+
+<p>Ready to write one? Follow <a href="./build-a-plugin.html">Build a plugin</a>.</p>

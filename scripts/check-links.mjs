@@ -28,6 +28,11 @@ const idsOf = (file) => {
 const problems = [];
 for (const file of htmlFiles(root)) {
   const html = readFileSync(file, 'utf8');
+  for (const [, src] of html.matchAll(/<img[^>]*\ssrc="([^"]+)"/g)) {
+    if (!src.startsWith('/')) continue;
+    const local = basePath && src.startsWith(basePath) ? src.slice(basePath.length) : src;
+    if (!existsSync(join(root, local))) problems.push(`${relative(root, file)}: missing image ${src}`);
+  }
   for (const [, href] of html.matchAll(/href="([^"]+)"/g)) {
     if (/^(https?:|mailto:|data:)/.test(href) || href.startsWith('/_next/') || href.startsWith(`${basePath}/_next/`)) continue;
     const [path, hash] = href.split('#');

@@ -1,0 +1,138 @@
+<!--
+title: Installation
+description: Install ByteContent with npm, pnpm, yarn or bun, connect it to PostgreSQL and start the Admin Studio.
+-->
+<h1>Installation</h1>
+<p class="lead">Create a new ByteContent project with your favourite package manager, connect it to PostgreSQL and open the Admin Studio.</p>
+
+<div class="callout warn">
+  <strong>The installer is coming soon</strong>
+  <p>The <code>create-bytecontent</code> installer and the <code>bytecontent</code> command described on this page are in development and not yet published to npm. Today, install ByteContent from source with the <a href="./quickstart.html">Quickstart</a>; it takes about ten minutes.</p>
+</div>
+
+<h2>Requirements</h2>
+<table>
+  <thead><tr><th>Tool</th><th>Version</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Node.js</td><td>22 or newer (24 LTS recommended)</td><td><a href="https://nodejs.org">nodejs.org</a></td></tr>
+    <tr><td>Package manager</td><td>npm, pnpm, yarn or bun</td><td>Use whichever you prefer</td></tr>
+    <tr><td>PostgreSQL</td><td>16 or newer</td><td>Local, Docker or a managed service (Neon, Supabase, RDS, …)</td></tr>
+  </tbody>
+</table>
+<p>ByteContent does not install PostgreSQL for you. Bring an existing server, or start one with Docker:</p>
+
+```bash
+docker run -d --name bytecontent-db -p 5432:5432 \
+  -e POSTGRES_PASSWORD=postgres postgres:17
+```
+
+<h2>Create a project</h2>
+<div class="tabs" data-group="pm">
+<div class="tab-panel" data-label="npm">
+
+```bash
+npx create-bytecontent@latest my-cms
+```
+
+</div>
+<div class="tab-panel" data-label="pnpm">
+
+```bash
+pnpm create bytecontent my-cms
+```
+
+</div>
+<div class="tab-panel" data-label="yarn">
+
+```bash
+yarn create bytecontent my-cms
+```
+
+</div>
+<div class="tab-panel" data-label="bun">
+
+```bash
+bun create bytecontent my-cms
+```
+
+</div>
+</div>
+
+<h2>Answer the setup questions</h2>
+<p>The installer asks for your database connection, like other popular CMSs do, and checks it before it continues:</p>
+
+```text
+? Project name                my-cms
+? Tenancy mode                single (one organisation)
+? Database host               localhost
+? Database port               5432
+? Database name               bytecontent
+? Database user               bytecontent
+? Database password           ********
+? Use SSL?                    No
+
+✔ Connected to PostgreSQL 17.2
+✔ Wrote .env
+✔ Applied database migrations
+```
+
+<p>If the database cannot be reached, the installer <strong>does not stop</strong>. It writes the project and the <code>.env</code> file, shows a warning, and tells you how to fix it. Run <code>bytecontent doctor</code> any time to check the connection again.</p>
+<p>All settings live in one <code>.env</code> file in the project root. See <a href="./configuration.html">Configuration</a> for every option.</p>
+
+<h2>Start ByteContent</h2>
+<div class="tabs" data-group="pm">
+<div class="tab-panel" data-label="npm">
+
+```bash
+cd my-cms
+npm run dev
+```
+
+</div>
+<div class="tab-panel" data-label="pnpm">
+
+```bash
+cd my-cms
+pnpm dev
+```
+
+</div>
+<div class="tab-panel" data-label="yarn">
+
+```bash
+cd my-cms
+yarn dev
+```
+
+</div>
+<div class="tab-panel" data-label="bun">
+
+```bash
+cd my-cms
+bun run dev
+```
+
+</div>
+</div>
+<p>Open <code>http://localhost:3000/setup</code> to create the first administrator, then sign in to the Admin Studio.</p>
+
+<h2>The bytecontent command</h2>
+<table>
+  <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>bytecontent dev</code></td><td>Start the API and Admin Studio in development mode</td></tr>
+    <tr><td><code>bytecontent build</code> / <code>start</code></td><td>Build and run for production</td></tr>
+    <tr><td><code>bytecontent setup</code></td><td>Create the first administrator from the terminal</td></tr>
+    <tr><td><code>bytecontent migrate</code></td><td>Apply pending database migrations</td></tr>
+    <tr><td><code>bytecontent doctor</code></td><td>Check Node.js, the database connection, migrations and settings</td></tr>
+    <tr><td><code>bytecontent backup</code> / <code>restore</code></td><td>Back up and restore the database and media</td></tr>
+  </tbody>
+</table>
+<p>The schema commands (<code>export</code>, <code>schema:diff</code>, <code>schema:push</code>, <code>types</code>) are described in the <a href="./cli.html">CLI reference</a>.</p>
+
+<h2>Next steps</h2>
+<ul>
+  <li><a href="./cms-template.html">Install the CMS template</a> to get articles, pages and authors.</li>
+  <li><a href="./public-api.html">Fetch content</a> from your website.</li>
+  <li><a href="./deployment.html">Deploy to production</a> with Docker.</li>
+</ul>
